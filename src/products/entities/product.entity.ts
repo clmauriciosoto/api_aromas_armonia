@@ -1,4 +1,10 @@
-import { Column, Entity, JoinTable, ManyToMany, PrimaryGeneratedColumn } from 'typeorm';
+import {
+  Column,
+  Entity,
+  JoinTable,
+  ManyToMany,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
 import { Attribute } from '../../attributes/entities/attribute.entity';
 
 @Entity()
@@ -23,6 +29,9 @@ export class Product {
 
   @Column()
   image: string;
+
+  @Column({nullable: true})
+  vendorCode: string;
 
   @ManyToMany(() => Attribute, (attribute) => attribute.products)
   @JoinTable({
