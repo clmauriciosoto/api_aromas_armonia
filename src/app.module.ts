@@ -6,6 +6,7 @@ import { ConfigModule } from '@nestjs/config';
 import { ProductsModule } from './products/products.module';
 import { AttributesModule } from './attributes/attributes.module';
 import { NewslettersModule } from './newsletters/newsletters.module';
+import { OrdersModule } from './orders/orders.module';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -27,6 +28,7 @@ import { NewslettersModule } from './newsletters/newsletters.module';
     ProductsModule,
     AttributesModule,
     NewslettersModule,
+    OrdersModule,
   ],
   controllers: [AppController],
   providers: [AppService],
