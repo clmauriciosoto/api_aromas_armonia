@@ -6,6 +6,7 @@ import {
   Patch,
   Param,
   Delete,
+  ParseIntPipe,
   Query,
   Req,
   UseGuards,
@@ -15,7 +16,9 @@ import {
   ApiForbiddenResponse,
   ApiOkResponse,
   ApiOperation,
+  ApiParam,
   ApiQuery,
+  ApiResponse,
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
@@ -27,6 +30,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { GetOrdersQueryDto } from './dto/get-orders-query.dto';
 import { PaginatedOrdersResponseDto } from './dto/paginated-orders-response.dto';
 import { OrderStatus } from './entities/order-status.enum';
+import { OrderDetailResponseDto } from './dto/order-detail-response.dto';
 
 interface AuthenticatedRequest extends Request {
   user: {
@@ -95,9 +99,30 @@ export class OrdersController {
     return this.ordersService.findAll(req.user, query);
   }
 
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get order detail by ID' })
+  @ApiParam({
+    name: 'id',
+    type: Number,
+    description: 'Order ID (integer)',
+    example: 1,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Order detail retrieved successfully',
+    type: OrderDetailResponseDto,
+  })
+  @ApiResponse({ status: 400, description: 'Invalid order ID format' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden' })
+  @ApiResponse({ status: 404, description: 'Order not found' })
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.ordersService.findOne(+id);
+  findOne(
+    @Param('id', ParseIntPipe) id: number,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.ordersService.findOneById(id, req.user);
   }
 
   @Patch(':id')

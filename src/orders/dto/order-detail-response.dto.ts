@@ -1,13 +1,32 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { OrderStatus } from '../entities/order-status.enum';
 import { PaymentMethod } from '../entities/payment-method.enum';
 
-export class OrderListItemDto {
+class OrderDetailItemDto {
   @ApiProperty({ example: 1 })
   id: number;
 
-  @ApiProperty({ enum: OrderStatus, example: OrderStatus.PENDING })
-  status: OrderStatus;
+  @ApiProperty({ example: 12 })
+  productId: number;
+
+  @ApiProperty({ example: 'Elegance Noir' })
+  productName: string;
+
+  @ApiProperty({ example: 2 })
+  quantity: number;
+
+  @ApiProperty({ example: 7995 })
+  unitPrice: number;
+
+  @ApiProperty({ example: 15990 })
+  subtotal: number;
+}
+
+export class OrderDetailResponseDto {
+  @ApiProperty({ example: 1 })
+  id: number;
+
+  @ApiProperty({ example: 'PAID' })
+  status: string;
 
   @ApiProperty({ example: 15990 })
   totalAmount: number;
@@ -32,4 +51,7 @@ export class OrderListItemDto {
 
   @ApiProperty({ enum: PaymentMethod, example: PaymentMethod.BANK_TRANSFER })
   paymentMethod: PaymentMethod;
+
+  @ApiProperty({ type: () => [OrderDetailItemDto] })
+  items: OrderDetailItemDto[];
 }
