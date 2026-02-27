@@ -197,7 +197,9 @@ Route Handler (receives request.user with admin data)
 ### JWT Security
 1. **Environment-Based Secrets**: `JWT_SECRET` and `JWT_REFRESH_SECRET` loaded from environment variables
 2. **No Hardcoded Secrets**: All secrets are externalized
-3. **Expiration**: Access token expires in 1 hour; refresh token in 7 days
+3. **Configurable Token Lifetimes**: 
+   - Access token lifetime via `JWT_EXPIRATION` (default: 1 hour)
+   - Refresh token lifetime via `JWT_REFRESH_EXPIRATION` (default: 7 days)
 4. **Payload Verification**: Token requests re-validate admin status
 5. **Replay Protection**: Refresh token rotation and version checks prevent reuse
 
@@ -241,22 +243,38 @@ interface JwtPayload {
 
 ### Configuration
 
-**auth.module.ts**:
+**auth.service.ts** - Token generation with separate expiration times:
 ```typescript
-JwtModule.registerAsync({
-  imports: [ConfigModule],
-  inject: [ConfigService],
-  useFactory: (configService: ConfigService) => ({
-    secret: configService.get<string>('JWT_SECRET'),
-    signOptions: { expiresIn: '1h' },
-  }),
-})
+private async generateTokens(admin: Admin, tokenVersion: number) {
+  const accessExpiration = this.configService.get<string>(
+    'JWT_EXPIRATION',
+    '1h'
+  );
+  const refreshExpiration = this.configService.get<string>(
+    'JWT_REFRESH_EXPIRATION',
+    '7d'
+  );
+
+  const [accessToken, refreshToken] = await Promise.all([
+    this.jwtService.signAsync(payload, {
+      secret: accessSecret,
+      expiresIn: accessExpiration,  // Configurable access token lifetime
+    }),
+    this.jwtService.signAsync(refreshPayload, {
+      secret: refreshSecret,
+      expiresIn: refreshExpiration, // Configurable refresh token lifetime
+    }),
+  ]);
+  
+  return { access_token: accessToken, refresh_token: refreshToken };
+}
 ```
 
 This ensures:
+- Access and refresh tokens have independent, configurable lifetimes
+- Secrets are not hardcoded
 - Configuration is loaded from environment variables
-- Secret is not hardcoded
-- Token expiration is enforced
+- Defaults are sensible (1h access, 7d refresh)
 
 ## Environment Configuration
 
@@ -266,6 +284,8 @@ This ensures:
 # JWT Configuration
 JWT_SECRET=your-super-secret-jwt-key-change-in-production-min-32-chars
 JWT_REFRESH_SECRET=your-super-secret-refresh-key-change-in-production-min-32-chars
+JWT_EXPIRATION=1h
+JWT_REFRESH_EXPIRATION=7d
 
 # Database Configuration
 DATABASE_HOST=localhost
@@ -278,6 +298,15 @@ DATABASE_NAME=aromas_armonia_db
 NODE_ENV=development
 PORT=3000
 ```
+
+**JWT Configuration Details:**
+
+| Variable | Default | Description | Examples |
+|----------|---------|-------------|----------|
+| `JWT_SECRET` | *(required)* | Access token secret key (min 32 chars) | `your-random-secret-min-32-chars` |
+| `JWT_REFRESH_SECRET` | *(required)* | Refresh token secret key (min 32 chars) | `your-random-secret-min-32-chars` |
+| `JWT_EXPIRATION` | `1h` | **Access token** lifetime | `15m`, `1h`, `4h`, `8h` |
+| `JWT_REFRESH_EXPIRATION` | `7d` | **Refresh token** lifetime | `7d`, `14d`, `30d`, `90d` |
 
 ### Security Notes for Production
 

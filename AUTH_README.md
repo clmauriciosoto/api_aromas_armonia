@@ -10,12 +10,14 @@ A production-ready JWT-based authentication module for NestJS with support for A
 - ✅ Email + password login
 - ✅ Bcrypt password hashing with 10 salt rounds
 - ✅ Role-based access control (ADMIN only)
-- ✅ Environment-based JWT secret (no hardcoding)
+- ✅ Environment-based JWT secrets (no hardcoding)
+- ✅ Configurable access token expiration via JWT_EXPIRATION
+- ✅ Configurable refresh token expiration via JWT_REFRESH_EXPIRATION
 - ✅ Guard-based route protection
 - ✅ Decorator-based role validation
 - ✅ Comprehensive error handling
 - ✅ Admin status verification
-- ✅ 1-hour token expiration
+- ✅ Separate, configurable token lifetimes
 - ✅ Scalable modular architecture
 - ✅ TypeORM integration
 - ✅ DTO validation
@@ -189,8 +191,9 @@ Response:
 - Secure comparison using `bcrypt.compare()`
 
 ### JWT Security
-- Secret from environment variables (no hardcoding)
-- 1-hour expiration (3600 seconds)
+- Secrets from environment variables (no hardcoding)
+- Configurable access token lifetime via `JWT_EXPIRATION` (default: 1 hour)
+- Configurable refresh token lifetime via `JWT_REFRESH_EXPIRATION` (default: 7 days)
 - Payload verification on each request
 - Token re-validation checks admin active status
 

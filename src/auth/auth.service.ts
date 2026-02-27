@@ -161,6 +161,10 @@ export class AuthService {
       const accessSecret = this.configService.get<string>('JWT_SECRET');
       const refreshSecret =
         this.configService.get<string>('JWT_REFRESH_SECRET');
+      const accessExpiration =
+        this.configService.get<string>('JWT_EXPIRATION', '1h') ?? '1h';
+      const refreshExpiration =
+        this.configService.get<string>('JWT_REFRESH_EXPIRATION', '7d') ?? '7d';
 
       if (!accessSecret || !refreshSecret) {
         throw new InternalServerErrorException(
@@ -183,12 +187,12 @@ export class AuthService {
       const [accessToken, refreshToken] = await Promise.all([
         this.jwtService.signAsync(payload, {
           secret: accessSecret,
-          expiresIn: '1h',
-        }),
+          expiresIn: accessExpiration,
+        } as any),
         this.jwtService.signAsync(refreshPayload, {
           secret: refreshSecret,
-          expiresIn: '7d',
-        }),
+          expiresIn: refreshExpiration,
+        } as any),
       ]);
 
       return {
