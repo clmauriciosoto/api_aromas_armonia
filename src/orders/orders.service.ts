@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Order } from './entities/order.entity';
@@ -6,6 +10,14 @@ import { OrderItem } from './entities/order-item.entity';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
 import { Product } from 'src/products/entities/product.entity';
+import { GetOrdersQueryDto } from './dto/get-orders-query.dto';
+import { PaginatedOrdersResponseDto } from './dto/paginated-orders-response.dto';
+
+interface AuthenticatedUser {
+  id?: string;
+  sub?: string;
+  role?: string;
+}
 
 @Injectable()
 export class OrdersService {
@@ -52,8 +64,61 @@ export class OrdersService {
     return this.orderRepository.save(order);
   }
 
-  findAll(): Promise<Order[]> {
-    return this.orderRepository.find({ relations: ['items', 'items.product'] });
+  async findAll(
+    user: AuthenticatedUser,
+    query: GetOrdersQueryDto,
+  ): Promise<PaginatedOrdersResponseDto> {
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 10;
+    const skip = (page - 1) * limit;
+
+    const qb = this.orderRepository.createQueryBuilder('order');
+
+    qb.select([
+      'order.id',
+      'order.status',
+      'order.totalAmount',
+      'order.createdAt',
+    ]);
+
+    if (user.role !== 'admin') {
+      throw new ForbiddenException(
+        'Orders access for non-admin users is not available until ownership mapping is implemented',
+      );
+    }
+
+    if (query.status) {
+      qb.andWhere('order.status = :status', { status: query.status });
+    }
+
+    if (query.startDate) {
+      qb.andWhere('order.createdAt >= :startDate', {
+        startDate: query.startDate,
+      });
+    }
+
+    if (query.endDate) {
+      qb.andWhere('order.createdAt <= :endDate', { endDate: query.endDate });
+    }
+
+    qb.skip(skip).take(limit).orderBy('order.createdAt', 'DESC');
+
+    const [data, total] = await qb.getManyAndCount();
+
+    return {
+      data: data.map((order) => ({
+        id: order.id,
+        status: order.status,
+        totalAmount: order.totalAmount,
+        createdAt: order.createdAt,
+      })),
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   }
 
   async findOne(id: number): Promise<Order> {
