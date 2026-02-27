@@ -12,6 +12,7 @@ import { UpdateOrderDto } from './dto/update-order.dto';
 import { Product } from 'src/products/entities/product.entity';
 import { GetOrdersQueryDto } from './dto/get-orders-query.dto';
 import { PaginatedOrdersResponseDto } from './dto/paginated-orders-response.dto';
+import { OrderDetailResponseDto } from './dto/order-detail-response.dto';
 
 interface AuthenticatedUser {
   id?: string;
@@ -79,6 +80,12 @@ export class OrdersService {
       'order.status',
       'order.totalAmount',
       'order.createdAt',
+      'order.firstName',
+      'order.lastName',
+      'order.email',
+      'order.phone',
+      'order.address',
+      'order.paymentMethod',
     ]);
 
     if (user.role !== 'admin') {
@@ -111,6 +118,12 @@ export class OrdersService {
         status: order.status,
         totalAmount: order.totalAmount,
         createdAt: order.createdAt,
+        firstName: order.firstName,
+        lastName: order.lastName,
+        email: order.email,
+        phone: order.phone,
+        address: order.address,
+        paymentMethod: order.paymentMethod,
       })),
       meta: {
         total,
@@ -118,6 +131,47 @@ export class OrdersService {
         limit,
         totalPages: Math.ceil(total / limit),
       },
+    };
+  }
+
+  async findOneById(
+    id: number,
+    user: AuthenticatedUser,
+  ): Promise<OrderDetailResponseDto> {
+    if (user.role !== 'admin') {
+      throw new ForbiddenException('Only admin users can access order detail');
+    }
+
+    const order = await this.orderRepository
+      .createQueryBuilder('order')
+      .leftJoinAndSelect('order.items', 'items')
+      .leftJoinAndSelect('items.product', 'product')
+      .where('order.id = :id', { id })
+      .getOne();
+
+    if (!order) {
+      throw new NotFoundException('Order not found');
+    }
+
+    return {
+      id: order.id,
+      status: order.status,
+      totalAmount: order.totalAmount,
+      createdAt: order.createdAt,
+      firstName: order.firstName,
+      lastName: order.lastName,
+      email: order.email,
+      phone: order.phone,
+      address: order.address,
+      paymentMethod: order.paymentMethod,
+      items: (order.items ?? []).map((item) => ({
+        id: item.id,
+        productId: item.product.id,
+        productName: item.product.name,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        subtotal: item.subtotal,
+      })),
     };
   }
 
