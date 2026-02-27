@@ -13,12 +13,17 @@ import { SaleType } from './sale-type.enum';
 import { SaleStatus } from './sale-status.enum';
 import { SaleItem } from './sale-item.entity';
 import { Order } from '../../orders/entities/order.entity';
+import { OrderStatus } from '../../orders/entities/order-status.enum';
 import { Admin } from '../../users/entities/admin.entity';
 
 @Entity('sales')
 @Index(['createdAt'])
 @Index(['status'])
 @Index(['type'])
+@Index('UQ_sales_orderId_not_null', ['orderId'], {
+  unique: true,
+  where: '"orderId" IS NOT NULL',
+})
 export class Sale {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
@@ -31,6 +36,9 @@ export class Sale {
 
   @Column({ type: 'int', nullable: true })
   orderId!: number | null;
+
+  @Column({ type: 'enum', enum: OrderStatus, nullable: true })
+  orderStatusBeforeSale!: OrderStatus | null;
 
   @ManyToOne(() => Order, { nullable: true, onDelete: 'SET NULL' })
   @JoinColumn({ name: 'orderId' })

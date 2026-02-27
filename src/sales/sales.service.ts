@@ -1,10 +1,17 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, EntityManager, In, Repository } from 'typeorm';
+import {
+  DataSource,
+  EntityManager,
+  In,
+  QueryFailedError,
+  Repository,
+} from 'typeorm';
 import { Sale } from './entities/sale.entity';
 import { SaleItem } from './entities/sale-item.entity';
 import { InventoryMovement } from './entities/inventory-movement.entity';
@@ -56,8 +63,12 @@ export class SalesService {
     user: AuthenticatedUser,
   ): Promise<SaleResponseDto> {
     const actorId = this.resolveActorId(user);
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
 
-    return this.dataSource.transaction(async (manager) => {
+    try {
+      const manager = queryRunner.manager;
       const normalizedItems = this.normalizeItems(dto.items);
       const productIds = normalizedItems.map((item) => item.productId);
 
@@ -89,6 +100,40 @@ export class SalesService {
           item.productId,
           (quantitiesByProduct.get(item.productId) ?? 0) + item.quantity,
         );
+      }
+
+      let linkedOrder: Order | null = null;
+      if (dto.orderId !== undefined) {
+        const linkedOrderId = Number(dto.orderId);
+        if (!Number.isInteger(linkedOrderId) || linkedOrderId <= 0) {
+          throw new BadRequestException('Invalid orderId');
+        }
+
+        linkedOrder = await manager.getRepository(Order).findOne({
+          where: { id: linkedOrderId },
+          lock: { mode: 'pessimistic_write' },
+        });
+
+        if (!linkedOrder) {
+          throw new NotFoundException(`Order ${linkedOrderId} not found`);
+        }
+
+        if (
+          linkedOrder.status !== OrderStatus.PENDING &&
+          linkedOrder.status !== OrderStatus.PAID
+        ) {
+          throw new ConflictException(
+            `Order ${dto.orderId} has status ${linkedOrder.status} and cannot be converted`,
+          );
+        }
+
+        const existingSale = await manager.getRepository(Sale).findOne({
+          where: { orderId: linkedOrderId },
+        });
+
+        if (existingSale) {
+          throw new ConflictException('Order already converted to sale');
+        }
       }
 
       const inventoryStateByProduct = new Map<
@@ -148,11 +193,16 @@ export class SalesService {
       });
 
       const sale = manager.getRepository(Sale).create({
-        type: SaleType.LOCAL,
+        type: linkedOrder ? SaleType.ORDER : SaleType.LOCAL,
         status: SaleStatus.COMPLETED,
-        orderId: null,
-        customerName: dto.customerName ?? null,
-        customerEmail: dto.customerEmail ?? null,
+        orderId: linkedOrder?.id ?? null,
+        orderStatusBeforeSale: linkedOrder?.status ?? null,
+        customerName:
+          dto.customerName ??
+          (linkedOrder
+            ? `${linkedOrder.firstName} ${linkedOrder.lastName}`.trim()
+            : null),
+        customerEmail: dto.customerEmail ?? linkedOrder?.email ?? null,
         totalAmount,
         createdBy: actorId,
         items: saleItems,
@@ -171,150 +221,67 @@ export class SalesService {
             newQuantity: inventoryState.newQuantity,
             saleId: savedSale.id,
             createdBy: actorId,
-            note: 'Local sale',
+            note: linkedOrder
+              ? `Sale generated from order ${linkedOrder.id}`
+              : 'Local sale',
           }),
         );
       }
 
+      if (linkedOrder) {
+        await manager.getRepository(Order).update(linkedOrder.id, {
+          status: 'SOLD' as OrderStatus,
+        });
+      }
+
+      await queryRunner.commitTransaction();
       return this.toSaleResponse(savedSale);
-    });
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+
+      if (error instanceof QueryFailedError) {
+        const dbError = error as QueryFailedError & { code?: string };
+        if (dbError.code === '23505' && dto.orderId !== undefined) {
+          throw new ConflictException('Order already converted to sale');
+        }
+      }
+
+      throw error;
+    } finally {
+      await queryRunner.release();
+    }
   }
 
   async createSaleFromOrder(
     orderId: number,
     user: AuthenticatedUser,
   ): Promise<SaleResponseDto> {
-    const actorId = this.resolveActorId(user);
+    const order = await this.orderRepository.findOne({
+      where: { id: orderId },
+      relations: ['items'],
+    });
 
-    return this.dataSource.transaction(async (manager) => {
-      const existingSale = await manager.getRepository(Sale).findOne({
-        where: { orderId },
-      });
+    if (!order) {
+      throw new NotFoundException(`Order ${orderId} not found`);
+    }
 
-      if (existingSale && existingSale.status !== SaleStatus.CANCELLED) {
-        throw new BadRequestException(
-          `Order ${orderId} already has an active sale record`,
-        );
-      }
+    if (!order.items?.length) {
+      throw new BadRequestException('Order has no items');
+    }
 
-      const order = await manager.getRepository(Order).findOne({
-        where: { id: orderId },
-        relations: ['items'],
-      });
-
-      if (!order) {
-        throw new NotFoundException(`Order ${orderId} not found`);
-      }
-
-      if (order.status === OrderStatus.CANCELLED) {
-        throw new BadRequestException('Cancelled order cannot be sold');
-      }
-
-      if (!order.items?.length) {
-        throw new BadRequestException('Order has no items');
-      }
-
-      const quantitiesByProduct = new Map<number, number>();
-      for (const item of order.items) {
-        quantitiesByProduct.set(
-          item.productId,
-          (quantitiesByProduct.get(item.productId) ?? 0) + item.quantity,
-        );
-      }
-
-      const inventoryStateByProduct = new Map<
-        number,
-        { previousQuantity: number; newQuantity: number }
-      >();
-
-      for (const [productId, quantity] of quantitiesByProduct.entries()) {
-        const inventory = await this.lockInventoryByProductId(
-          manager,
-          productId,
-        );
-        if (!inventory) {
-          throw new BadRequestException(
-            `Insufficient stock for product ${productId}`,
-          );
-        }
-
-        const available = inventory.quantity - inventory.reservedQuantity;
-        if (available < quantity) {
-          throw new BadRequestException(
-            `Insufficient available stock for product ${productId}`,
-          );
-        }
-
-        const previousQuantity = inventory.quantity;
-        inventory.quantity -= quantity;
-        await manager.getRepository(Inventory).save(inventory);
-
-        inventoryStateByProduct.set(productId, {
-          previousQuantity,
-          newQuantity: inventory.quantity,
-        });
-      }
-
-      let totalAmount = 0;
-      const productIds = [
-        ...new Set(order.items.map((item) => item.productId)),
-      ];
-      const products = await manager.getRepository(Product).findBy({
-        id: In(productIds),
-      });
-      const productMap = new Map(
-        products.map((product) => [product.id, product.name]),
-      );
-
-      const saleItems = order.items.map((item) => {
-        const subtotal = item.unitPrice * item.quantity;
-        totalAmount += subtotal;
-
-        return manager.getRepository(SaleItem).create({
-          productId: item.productId,
-          productName:
-            productMap.get(item.productId) ?? `Product ${item.productId}`,
-          quantity: item.quantity,
-          unitPrice: item.unitPrice,
-          subtotal,
-        });
-      });
-
-      const sale = manager.getRepository(Sale).create({
-        type: SaleType.ORDER,
-        status: SaleStatus.COMPLETED,
-        orderId: order.id,
+    return this.createSale(
+      {
+        orderId,
         customerName: `${order.firstName} ${order.lastName}`.trim(),
         customerEmail: order.email,
-        totalAmount,
-        createdBy: actorId,
-        items: saleItems,
-      });
-
-      const savedSale = await manager.getRepository(Sale).save(sale);
-
-      for (const [productId, quantity] of quantitiesByProduct.entries()) {
-        const inventoryState = inventoryStateByProduct.get(productId)!;
-        await manager.getRepository(InventoryMovement).save(
-          manager.getRepository(InventoryMovement).create({
-            productId,
-            type: InventoryMovementType.SALE,
-            quantityChange: -quantity,
-            previousQuantity: inventoryState.previousQuantity,
-            newQuantity: inventoryState.newQuantity,
-            saleId: savedSale.id,
-            createdBy: actorId,
-            note: `Sale generated from order ${order.id}`,
-          }),
-        );
-      }
-
-      await manager.getRepository(Order).update(order.id, {
-        status: OrderStatus.PAID,
-      });
-
-      return this.toSaleResponse(savedSale);
-    });
+        items: order.items.map((item) => ({
+          productId: item.productId,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+        })),
+      },
+      user,
+    );
   }
 
   async cancelSale(
@@ -322,8 +289,12 @@ export class SalesService {
     user: AuthenticatedUser,
   ): Promise<SaleResponseDto> {
     const actorId = this.resolveActorId(user);
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
 
-    return this.dataSource.transaction(async (manager) => {
+    try {
+      const manager = queryRunner.manager;
       const sale = await manager
         .getRepository(Sale)
         .createQueryBuilder('sale')
@@ -382,19 +353,26 @@ export class SalesService {
       sale.status = SaleStatus.CANCELLED;
       const savedSale = await manager.getRepository(Sale).save(sale);
 
-      if (sale.orderId) {
+      if (sale.type === SaleType.ORDER && sale.orderId) {
         const order = await manager.getRepository(Order).findOne({
           where: { id: sale.orderId },
+          lock: { mode: 'pessimistic_write' },
         });
 
         if (order) {
-          order.status = OrderStatus.CANCELLED;
+          order.status = sale.orderStatusBeforeSale ?? OrderStatus.PENDING;
           await manager.getRepository(Order).save(order);
         }
       }
 
+      await queryRunner.commitTransaction();
       return this.toSaleResponse(savedSale);
-    });
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      throw error;
+    } finally {
+      await queryRunner.release();
+    }
   }
 
   async restockInventory(
