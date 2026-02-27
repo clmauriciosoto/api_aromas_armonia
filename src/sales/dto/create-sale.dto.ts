@@ -3,9 +3,11 @@ import {
   ArrayMinSize,
   IsArray,
   IsEmail,
+  IsInt,
   IsOptional,
   IsString,
   MaxLength,
+  Min,
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
@@ -29,4 +31,13 @@ export class CreateSaleDto {
   @IsOptional()
   @IsEmail()
   customerEmail?: string;
+
+  @ApiPropertyOptional({
+    description: 'If provided, sale is linked to an order and type becomes ORDER',
+    example: 123,
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  orderId?: number;
 }
