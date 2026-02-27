@@ -10,6 +10,7 @@ import { OrdersModule } from './orders/orders.module';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { InventoryModule } from './inventory/inventory.module';
+import { SalesModule } from './sales/sales.module';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { InventoryModule } from './inventory/inventory.module';
     NewslettersModule,
     InventoryModule,
     OrdersModule,
+    SalesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

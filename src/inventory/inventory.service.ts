@@ -11,6 +11,8 @@ import { GetInventoryQueryDto } from './dto/get-inventory-query.dto';
 import { PaginatedInventoryResponseDto } from './dto/paginated-inventory-response.dto';
 import { InventoryResponseDto } from './dto/inventory-response.dto';
 import { ProductStatus } from '../products/entities/product-status.enum';
+import { InventoryMovement } from '../sales/entities/inventory-movement.entity';
+import { InventoryMovementType } from '../sales/entities/inventory-movement-type.enum';
 
 const MAX_DB_INT = 2147483647;
 
@@ -21,6 +23,8 @@ export class InventoryService {
     private readonly inventoryRepository: Repository<Inventory>,
     @InjectRepository(Product)
     private readonly productRepository: Repository<Product>,
+    @InjectRepository(InventoryMovement)
+    private readonly inventoryMovementRepository: Repository<InventoryMovement>,
     private readonly dataSource: DataSource,
   ) {}
 
@@ -158,6 +162,7 @@ export class InventoryService {
   async adjustStock(
     productId: number,
     adjustment: number,
+    actorId: string,
   ): Promise<InventoryResponseDto> {
     return this.dataSource.transaction(async (manager) => {
       const product = await manager.getRepository(Product).findOne({
@@ -194,8 +199,29 @@ export class InventoryService {
       const nextQuantity = inventory.quantity + adjustment;
       this.validateQuantity(nextQuantity);
 
+      if (nextQuantity < inventory.reservedQuantity) {
+        throw new BadRequestException(
+          'Cannot reduce stock below reserved quantity',
+        );
+      }
+
+      const previousQuantity = inventory.quantity;
       inventory.quantity = nextQuantity;
       const saved = await inventoryRepo.save(inventory);
+
+      const movementRepo = manager.getRepository(InventoryMovement);
+      await movementRepo.save(
+        movementRepo.create({
+          productId,
+          type: InventoryMovementType.ADJUSTMENT,
+          quantityChange: adjustment,
+          previousQuantity,
+          newQuantity: saved.quantity,
+          saleId: null,
+          note: 'Inventory adjusted from /inventory/:productId/adjust',
+          createdBy: actorId,
+        }),
+      );
 
       return {
         id: saved.id,
