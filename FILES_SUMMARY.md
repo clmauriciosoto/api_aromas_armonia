@@ -338,6 +338,46 @@ Validates login request with email and password format validation using class-va
 ### Admin Seed Script (`admin.seed.ts`)
 Utility script to create initial admin user for development and testing.
 
+---
+
+## 📦 Inventory Module Update
+
+### Location: `src/inventory/`
+
+#### Files Added
+
+| File | Purpose |
+|------|---------|
+| `inventory.module.ts` | Inventory module wiring and exports |
+| `inventory.controller.ts` | Admin endpoints + Swagger decorators |
+| `inventory.service.ts` | Stock business logic, transactions and locking |
+| `entities/inventory.entity.ts` | Inventory table, constraints and indexes |
+| `dto/adjust-stock.dto.ts` | Stock adjustment payload validation |
+| `dto/get-inventory-query.dto.ts` | Pagination/filter/sort query validation |
+| `dto/inventory-response.dto.ts` | Inventory response contract |
+| `dto/paginated-inventory-response.dto.ts` | Paginated inventory response contract |
+
+#### Integration Updates
+
+| File | Change |
+|------|--------|
+| `src/app.module.ts` | Added `InventoryModule` import |
+| `src/orders/orders.module.ts` | Imported `InventoryModule` |
+| `src/orders/orders.service.ts` | Transactional stock decrease during order creation |
+
+#### API Endpoints (Admin)
+
+- `GET /inventory`
+- `GET /inventory/:productId`
+- `PATCH /inventory/:productId/adjust`
+
+#### Inventory Guarantees
+
+- Unique inventory record per product
+- Quantity cannot be negative
+- Pessimistic locking for concurrent stock updates
+- Full order rollback when stock validation fails
+
 ### Setup Script (`setup-auth.sh`)
 Automated setup script that installs dependencies and creates .env file.
 

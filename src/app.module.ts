@@ -9,6 +9,7 @@ import { NewslettersModule } from './newsletters/newsletters.module';
 import { OrdersModule } from './orders/orders.module';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
+import { InventoryModule } from './inventory/inventory.module';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { UsersModule } from './users/users.module';
     ProductsModule,
     AttributesModule,
     NewslettersModule,
+    InventoryModule,
     OrdersModule,
   ],
   controllers: [AppController],

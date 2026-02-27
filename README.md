@@ -1,67 +1,61 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Aromas Armonia API
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+API backend de ecommerce construido con NestJS, TypeORM y PostgreSQL.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## Stack
 
-## Description
+- NestJS
+- TypeORM
+- PostgreSQL
+- JWT + RBAC (admin/user)
+- Swagger/OpenAPI
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## Módulos principales
 
-## Project setup
+- `auth`
+- `users`
+- `products`
+- `attributes`
+- `orders`
+- `inventory`
+- `newsletters`
+
+## Ejecución
 
 ```bash
-$ npm install
+npm install
+npm run start:dev
 ```
 
-## Compile and run the project
+Aplicación:
+- `http://localhost:3000`
 
-```bash
-# development
-$ npm run start
+Swagger UI:
+- `http://localhost:3000/docs`
 
-# watch mode
-$ npm run start:dev
+## Inventario (nuevo)
 
-# production mode
-$ npm run start:prod
-```
+Endpoints admin:
 
-## Run tests
+- `GET /inventory` (paginación, filtros y sorting)
+- `GET /inventory/:productId` (detalle de stock)
+- `PATCH /inventory/:productId/adjust` (ajuste manual de stock)
 
-```bash
-# unit tests
-$ npm run test
+Reglas de stock:
 
-# e2e tests
-$ npm run test:e2e
+- No se permite stock negativo
+- Validación ante overflow de `int4`
+- Locks pesimistas (`pessimistic_write`) en mutaciones
 
-# test coverage
-$ npm run test:cov
-```
+## Integración Orders + Inventory
 
-## Deployment
+La creación de órdenes se ejecuta en una transacción única:
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+1. Valida y descuenta stock por producto.
+2. Crea orden e ítems.
+3. Si falla cualquier validación de stock, se hace rollback completo.
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+## Documentación adicional
 
 ```bash
 $ npm install -g @nestjs/mau

@@ -92,6 +92,40 @@ Response: `{ id, email, role }`
 
 ---
 
+## 📦 Inventory Module (Admin)
+
+Swagger:
+```text
+GET /docs
+```
+
+Inventory endpoints:
+
+```text
+GET /inventory
+GET /inventory/:productId
+PATCH /inventory/:productId/adjust
+```
+
+Example adjustment:
+
+```bash
+curl -X PATCH http://localhost:3000/inventory/1/adjust \
+  -H "Authorization: Bearer TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "adjustment": -2
+  }'
+```
+
+Rules enforced:
+- No negative stock
+- Admin-only access (JWT + role guard)
+- Transactional stock updates
+- Concurrency-safe stock mutation with pessimistic locking
+
+---
+
 ## 📋 Admin Entity Fields
 
 ```typescript
