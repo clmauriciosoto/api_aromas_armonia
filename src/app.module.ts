@@ -7,6 +7,9 @@ import { ProductsModule } from './products/products.module';
 import { AttributesModule } from './attributes/attributes.module';
 import { NewslettersModule } from './newsletters/newsletters.module';
 import { OrdersModule } from './orders/orders.module';
+import { AuthModule } from './auth/auth.module';
+import { UsersModule } from './users/users.module';
+
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -25,6 +28,8 @@ import { OrdersModule } from './orders/orders.module';
       logging: ['error', 'warn', 'info', 'schema'],
       logger: 'advanced-console',
     }),
+    AuthModule,
+    UsersModule,
     ProductsModule,
     AttributesModule,
     NewslettersModule,
