@@ -28,6 +28,8 @@ import {
 import { Inventory } from '../inventory/entities/inventory.entity';
 import { ProductStatus } from './entities/product-status.enum';
 import { GetPublicProductsQueryDto } from './dto/get-public-products-query.dto';
+import { ProductImage } from './entities/product-image.entity';
+import { UpdateProductImageDto } from './dto/update-product.dto';
 
 export type PaginatedProductsResponse = {
   data: Product[];
@@ -38,6 +40,8 @@ export type PaginatedProductsResponse = {
     totalPages: number;
   };
 };
+
+export type ProductAdminResponse = Omit<Product, 'deletedAt'>;
 
 @Injectable()
 export class ProductsService {
@@ -305,59 +309,136 @@ export class ProductsService {
   async update(
     id: number,
     updateProductDto: UpdateProductDto,
-  ): Promise<Product> {
-    const product = await this.productRepository.findOne({
-      where: { id },
-      relations: ['attributes'],
-      withDeleted: true,
-    });
-
-    if (!product) {
-      throw new NotFoundException('Product not found');
-    }
-
-    const nextPrice = this.resolvePrice(updateProductDto, product.price ?? 0);
-    const nextDiscount = this.resolveDiscountPrice(
-      updateProductDto,
-      product.discountPrice,
-    );
-    this.validateDiscount(nextPrice, nextDiscount);
-
-    if (updateProductDto.name || updateProductDto.vendorCode !== undefined) {
-      await this.assertUniqueFields(
-        updateProductDto.name ?? product.name,
-        updateProductDto.vendorCode ?? product.vendorCode ?? undefined,
-        product.id,
-      );
-    }
-
-    if (updateProductDto.name && updateProductDto.name !== product.name) {
-      product.slug = await this.generateUniqueSlug(
-        updateProductDto.name,
-        undefined,
-        id,
-      );
-    }
-
-    if (updateProductDto.attributesIds) {
-      product.attributes = await this.attributeRepository.findBy({
-        id: In(updateProductDto.attributesIds),
-      });
-    }
-
-    Object.assign(product, {
-      ...updateProductDto,
-      currency: 'CLP',
-      price: nextPrice,
-      discountPrice: nextDiscount,
-    });
+  ): Promise<ProductAdminResponse> {
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
 
     try {
-      await this.productRepository.save(product);
-      return this.findOneAdmin(id);
+      const productRepository = queryRunner.manager.getRepository(Product);
+      const orderItemRepository = queryRunner.manager.getRepository(OrderItem);
+      const attributeRepository = queryRunner.manager.getRepository(Attribute);
+      const productImageRepository =
+        queryRunner.manager.getRepository(ProductImage);
+
+      const product = await productRepository.findOne({
+        where: { id },
+        relations: ['attributes', 'images'],
+        withDeleted: true,
+      });
+
+      if (!product) {
+        throw new NotFoundException('Product not found');
+      }
+
+      const hasOrderHistory =
+        (await orderItemRepository.count({ where: { productId: id } })) > 0;
+
+      if (hasOrderHistory) {
+        this.validateRestrictedUpdatesWithOrderHistory(updateProductDto);
+      }
+
+      const nextPrice = this.resolvePrice(updateProductDto, product.price ?? 0);
+      const nextDiscount = this.resolveDiscountPrice(
+        updateProductDto,
+        product.discountPrice,
+      );
+
+      this.validateDiscount(nextPrice, nextDiscount);
+
+      const shouldRegenerateSlug =
+        updateProductDto.name !== undefined &&
+        updateProductDto.name !== product.name &&
+        (product.slug === null || updateProductDto.regenerateSlug === true);
+
+      const nextName = updateProductDto.name ?? product.name;
+      const nextVendorCode =
+        updateProductDto.vendorCode === null
+          ? undefined
+          : (updateProductDto.vendorCode ?? product.vendorCode ?? undefined);
+
+      if (
+        updateProductDto.name !== undefined ||
+        updateProductDto.vendorCode !== undefined
+      ) {
+        await this.assertUniqueFields(
+          nextName,
+          nextVendorCode,
+          product.id,
+          queryRunner.manager,
+        );
+      }
+
+      if (shouldRegenerateSlug) {
+        product.slug = await this.generateUniqueSlug(
+          nextName,
+          queryRunner.manager,
+          id,
+        );
+      }
+
+      if (updateProductDto.attributeIds !== undefined) {
+        const attributes = await attributeRepository.findBy({
+          id: In(updateProductDto.attributeIds),
+        });
+
+        if (attributes.length !== updateProductDto.attributeIds.length) {
+          throw new BadRequestException('One or more attributeIds are invalid');
+        }
+
+        product.attributes = attributes;
+      }
+
+      if (updateProductDto.images !== undefined) {
+        const normalizedImages = this.normalizeAndValidateImages(
+          updateProductDto.images,
+        );
+
+        await productImageRepository.delete({ productId: id });
+
+        if (normalizedImages.length > 0) {
+          const entities = normalizedImages.map((image) =>
+            productImageRepository.create({
+              productId: id,
+              url: image.url,
+              position: image.position,
+              isPrimary: image.isPrimary,
+            }),
+          );
+          await productImageRepository.save(entities);
+        }
+      }
+
+      const nextStatus = updateProductDto.status ?? product.status;
+      const isArchived = nextStatus === ProductStatus.ARCHIVED;
+
+      product.name = nextName;
+      product.shortDescription =
+        updateProductDto.shortDescription ?? product.shortDescription;
+      product.description = updateProductDto.description ?? product.description;
+      product.price = nextPrice;
+      product.discountPrice = nextDiscount;
+      product.vendorCode =
+        updateProductDto.vendorCode !== undefined
+          ? updateProductDto.vendorCode
+          : product.vendorCode;
+      product.status = nextStatus;
+      product.isPurchasable = isArchived
+        ? false
+        : (updateProductDto.isPurchasable ?? product.isPurchasable);
+      product.currency = 'CLP';
+
+      await productRepository.save(product);
+      await queryRunner.commitTransaction();
+
+      const updatedProduct = await this.findOneAdmin(id);
+      return this.toAdminResponse(updatedProduct);
     } catch (error) {
+      await queryRunner.rollbackTransaction();
       this.rethrowPersistenceError(error);
       throw error;
+    } finally {
+      await queryRunner.release();
     }
   }
 
@@ -412,17 +493,17 @@ export class ProductsService {
   }
 
   private resolvePrice(
-    payload: Partial<CreateProductDto>,
+    payload: { price?: number | null },
     fallback = 0,
   ): number {
-    if (payload.price !== undefined) {
+    if (payload.price !== undefined && payload.price !== null) {
       return payload.price;
     }
     return fallback;
   }
 
   private resolveDiscountPrice(
-    payload: Partial<CreateProductDto>,
+    payload: { discountPrice?: number | null },
     fallback: number | null = null,
   ): number | null {
     if (payload.discountPrice !== undefined) {
@@ -527,6 +608,63 @@ export class ProductsService {
       .trim()
       .replace(/\s+/g, '-')
       .replace(/-+/g, '-');
+  }
+
+  private validateRestrictedUpdatesWithOrderHistory(
+    updateProductDto: UpdateProductDto,
+  ): void {
+    const restrictedUpdateRequested =
+      updateProductDto.name !== undefined ||
+      updateProductDto.shortDescription !== undefined ||
+      updateProductDto.price !== undefined ||
+      updateProductDto.discountPrice !== undefined ||
+      updateProductDto.vendorCode !== undefined ||
+      updateProductDto.currency !== undefined ||
+      updateProductDto.attributeIds !== undefined;
+
+    if (restrictedUpdateRequested) {
+      throw new BadRequestException(
+        'Products with order history cannot update commercial identity or pricing fields',
+      );
+    }
+  }
+
+  private normalizeAndValidateImages(
+    images: UpdateProductImageDto[],
+  ): UpdateProductImageDto[] {
+    const sortedImages = [...images].sort((a, b) => a.position - b.position);
+    const positionSet = new Set<number>();
+    let primaryCount = 0;
+
+    for (const image of sortedImages) {
+      if (positionSet.has(image.position)) {
+        throw new BadRequestException('Image position values must be unique');
+      }
+      positionSet.add(image.position);
+
+      if (image.isPrimary) {
+        primaryCount += 1;
+      }
+    }
+
+    if (primaryCount > 1) {
+      throw new BadRequestException('Only one image can be primary');
+    }
+
+    if (primaryCount === 0 && sortedImages.length > 0) {
+      sortedImages[0] = {
+        ...sortedImages[0],
+        isPrimary: true,
+      };
+    }
+
+    return sortedImages;
+  }
+
+  private toAdminResponse(product: Product): ProductAdminResponse {
+    const { deletedAt: _deletedAt, ...response } = product;
+    void _deletedAt;
+    return response;
   }
 
   private rethrowPersistenceError(error: unknown): void {

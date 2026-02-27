@@ -18,7 +18,10 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { AdminRole } from '../users/entities/admin.entity';
 import { GetAdminProductsQueryDto } from './dto/get-admin-products-query.dto';
 import { Product } from './entities/product.entity';
-import { PaginatedProductsResponse } from './products.service';
+import {
+  PaginatedProductsResponse,
+  ProductAdminResponse,
+} from './products.service';
 
 @Controller('admin/products')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -47,7 +50,7 @@ export class AdminProductsController {
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateProductDto: UpdateProductDto,
-  ): Promise<Product> {
+  ): Promise<ProductAdminResponse> {
     return this.productsService.update(id, updateProductDto);
   }
 
