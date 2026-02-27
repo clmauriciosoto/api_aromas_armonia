@@ -6,6 +6,8 @@ import {
   ParseIntPipe,
   Patch,
   Query,
+  Req,
+  UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -21,6 +23,7 @@ import {
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
+import { Request } from 'express';
 import { InventoryService } from './inventory.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -30,6 +33,14 @@ import { GetInventoryQueryDto } from './dto/get-inventory-query.dto';
 import { PaginatedInventoryResponseDto } from './dto/paginated-inventory-response.dto';
 import { InventoryResponseDto } from './dto/inventory-response.dto';
 import { AdjustStockDto } from './dto/adjust-stock.dto';
+
+interface AuthenticatedRequest extends Request {
+  user: {
+    id?: string;
+    sub?: string;
+    role: string;
+  };
+}
 
 @ApiTags('Inventory')
 @Controller('inventory')
@@ -126,7 +137,13 @@ export class InventoryController {
   adjustStock(
     @Param('productId', ParseIntPipe) productId: number,
     @Body() dto: AdjustStockDto,
+    @Req() req: AuthenticatedRequest,
   ): Promise<InventoryResponseDto> {
-    return this.inventoryService.adjustStock(productId, dto.adjustment);
+    const actorId = req.user?.id ?? req.user?.sub;
+    if (!actorId) {
+      throw new UnauthorizedException('Authenticated user id not found');
+    }
+
+    return this.inventoryService.adjustStock(productId, dto.adjustment, actorId);
   }
 }
