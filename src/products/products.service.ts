@@ -132,7 +132,7 @@ export class ProductsService {
         isPurchasable: true,
         deletedAt: IsNull(),
       },
-      relations: ['attributes'],
+      relations: ['attributes', 'images'],
       order: { id: 'ASC' },
     });
   }
@@ -182,7 +182,7 @@ export class ProductsService {
         isPurchasable: true,
         deletedAt: IsNull(),
       },
-      relations: ['attributes'],
+      relations: ['attributes', 'images'],
     });
 
     data.sort((a, b) => pageIds.indexOf(a.id) - pageIds.indexOf(b.id));
@@ -206,7 +206,7 @@ export class ProductsService {
         isPurchasable: true,
         deletedAt: IsNull(),
       },
-      relations: ['attributes'],
+      relations: ['attributes', 'images'],
     });
 
     if (!product) {
@@ -224,7 +224,7 @@ export class ProductsService {
         isPurchasable: true,
         deletedAt: IsNull(),
       },
-      relations: ['attributes'],
+      relations: ['attributes', 'images'],
     });
 
     if (!product) {
@@ -316,26 +316,18 @@ export class ProductsService {
 
     try {
       const productRepository = queryRunner.manager.getRepository(Product);
-      const orderItemRepository = queryRunner.manager.getRepository(OrderItem);
       const attributeRepository = queryRunner.manager.getRepository(Attribute);
       const productImageRepository =
         queryRunner.manager.getRepository(ProductImage);
 
       const product = await productRepository.findOne({
         where: { id },
-        relations: ['attributes', 'images'],
+        relations: ['attributes'],
         withDeleted: true,
       });
 
       if (!product) {
         throw new NotFoundException('Product not found');
-      }
-
-      const hasOrderHistory =
-        (await orderItemRepository.count({ where: { productId: id } })) > 0;
-
-      if (hasOrderHistory) {
-        this.validateRestrictedUpdatesWithOrderHistory(updateProductDto);
       }
 
       const nextPrice = this.resolvePrice(updateProductDto, product.price ?? 0);
@@ -616,15 +608,13 @@ export class ProductsService {
     const restrictedUpdateRequested =
       updateProductDto.name !== undefined ||
       updateProductDto.shortDescription !== undefined ||
-      updateProductDto.price !== undefined ||
-      updateProductDto.discountPrice !== undefined ||
       updateProductDto.vendorCode !== undefined ||
       updateProductDto.currency !== undefined ||
       updateProductDto.attributeIds !== undefined;
 
     if (restrictedUpdateRequested) {
       throw new BadRequestException(
-        'Products with order history cannot update commercial identity or pricing fields',
+        'Products with order history cannot update identity or attribute metadata fields',
       );
     }
   }
