@@ -1,10 +1,11 @@
 import {
+  BadRequestException,
   ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { Order } from './entities/order.entity';
 import { OrderItem } from './entities/order-item.entity';
 import { CreateOrderDto } from './dto/create-order.dto';
@@ -13,6 +14,7 @@ import { Product } from 'src/products/entities/product.entity';
 import { GetOrdersQueryDto } from './dto/get-orders-query.dto';
 import { PaginatedOrdersResponseDto } from './dto/paginated-orders-response.dto';
 import { OrderDetailResponseDto } from './dto/order-detail-response.dto';
+import { InventoryService } from '../inventory/inventory.service';
 
 interface AuthenticatedUser {
   id?: string;
@@ -29,40 +31,71 @@ export class OrdersService {
     private readonly orderItemRepository: Repository<OrderItem>,
     @InjectRepository(Product)
     private readonly productRepository: Repository<Product>,
+    private readonly inventoryService: InventoryService,
+    private readonly dataSource: DataSource,
   ) {}
 
   async create(createOrderDto: CreateOrderDto): Promise<Order> {
-    const { items, ...shippingData } = createOrderDto;
-    let totalAmount = 0;
-    const orderItems: OrderItem[] = [];
+    const { items } = createOrderDto;
 
-    for (const item of items) {
-      const product = await this.productRepository.findOne({
-        where: { id: item.productId },
-      });
-      if (!product) {
-        throw new NotFoundException(
-          `Product with id ${item.productId} not found`,
-        );
-      }
-      const unitPrice = product.price;
-      const subtotal = unitPrice * item.quantity;
-      totalAmount += subtotal;
-      const orderItem = this.orderItemRepository.create({
-        product,
-        quantity: item.quantity,
-        unitPrice,
-        subtotal,
-      });
-      orderItems.push(orderItem);
+    if (!items?.length) {
+      throw new BadRequestException('Order must include at least one item');
     }
 
-    const order = this.orderRepository.create({
-      ...shippingData,
-      totalAmount,
-      items: orderItems,
+    return this.dataSource.transaction(async (manager) => {
+      const productQuantities = new Map<number, number>();
+
+      for (const item of items) {
+        const previous = productQuantities.get(item.productId) ?? 0;
+        productQuantities.set(item.productId, previous + item.quantity);
+      }
+
+      const productIdsToLock = [...productQuantities.keys()].sort((a, b) => a - b);
+      for (const productId of productIdsToLock) {
+        const quantity = productQuantities.get(productId) ?? 0;
+        await this.inventoryService.decreaseStock(productId, quantity, manager);
+      }
+
+      let totalAmount = 0;
+      const orderItems: OrderItem[] = [];
+      const productCache = new Map<number, Product>();
+
+      for (const item of items) {
+        let product: Product | null = productCache.get(item.productId) ?? null;
+        if (!product) {
+          product = await manager.getRepository(Product).findOne({
+            where: { id: item.productId },
+          });
+          if (!product) {
+            throw new NotFoundException(
+              `Product with id ${item.productId} not found`,
+            );
+          }
+          productCache.set(item.productId, product);
+        }
+
+        const unitPrice = product.price;
+        const subtotal = unitPrice * item.quantity;
+        totalAmount += subtotal;
+
+        const orderItem = manager.getRepository(OrderItem).create({
+          product,
+          quantity: item.quantity,
+          unitPrice,
+          subtotal,
+        });
+        orderItems.push(orderItem);
+      }
+
+      const { items: _ignoredItems, ...shippingData } = createOrderDto;
+      const order = manager.getRepository(Order).create({
+        ...shippingData,
+        totalAmount,
+        items: orderItems,
+      });
+
+      return manager.getRepository(Order).save(order);
     });
-    return this.orderRepository.save(order);
   }
 
   async findAll(
