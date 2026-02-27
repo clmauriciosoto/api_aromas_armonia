@@ -1,11 +1,15 @@
 import {
   Column,
+  DeleteDateColumn,
   Entity,
   JoinTable,
   ManyToMany,
+  OneToMany,
   PrimaryGeneratedColumn,
 } from 'typeorm';
 import { Attribute } from '../../attributes/entities/attribute.entity';
+import { ProductImage } from './product-image.entity';
+import { ProductStatus } from './product-status.enum';
 
 @Entity()
 export class Product {
@@ -21,17 +25,39 @@ export class Product {
   @Column()
   description: string;
 
-  @Column('int')
-  discountPrice: number;
+  @Column('int', { nullable: true })
+  // @deprecated - maintained for backward compatibility
+  discountPrice: number | null;
 
-  @Column('int')
-  price: number;
+  @Column('int', { nullable: true })
+  // @deprecated - maintained for backward compatibility
+  price: number | null;
 
-  @Column()
-  image: string;
+  @Column({ type: 'varchar', nullable: true })
+  // @deprecated - maintained for backward compatibility
+  image: string | null;
 
-  @Column({nullable: true})
-  vendorCode: string;
+  @Column({ type: 'varchar', nullable: true })
+  vendorCode: string | null;
+
+  @Column({ type: 'varchar', unique: true, nullable: true })
+  slug: string | null;
+
+  @Column({
+    type: 'enum',
+    enum: ProductStatus,
+    default: ProductStatus.ACTIVE,
+  })
+  status: ProductStatus;
+
+  @Column({ default: true })
+  isPurchasable: boolean;
+
+  @Column({ type: 'varchar', length: 3, default: 'CLP' })
+  currency: string;
+
+  @DeleteDateColumn({ type: 'timestamp', nullable: true })
+  deletedAt: Date | null;
 
   @ManyToMany(() => Attribute, (attribute) => attribute.products)
   @JoinTable({
@@ -46,6 +72,9 @@ export class Product {
     },
   })
   attributes: Attribute[];
+
+  @OneToMany(() => ProductImage, (productImage) => productImage.product)
+  images: ProductImage[];
 }
 /*  {
     id: 1,

@@ -50,7 +50,9 @@ export class OrdersService {
         productQuantities.set(item.productId, previous + item.quantity);
       }
 
-      const productIdsToLock = [...productQuantities.keys()].sort((a, b) => a - b);
+      const productIdsToLock = [...productQuantities.keys()].sort(
+        (a, b) => a - b,
+      );
       for (const productId of productIdsToLock) {
         const quantity = productQuantities.get(productId) ?? 0;
         await this.inventoryService.decreaseStock(productId, quantity, manager);
@@ -74,7 +76,14 @@ export class OrdersService {
           productCache.set(item.productId, product);
         }
 
-        const unitPrice = product.price;
+        const unitPrice = Number(product.discountPrice ?? product.price);
+
+        if (!Number.isFinite(unitPrice) || unitPrice < 0) {
+          throw new BadRequestException(
+            `Product with id ${item.productId} has invalid pricing`,
+          );
+        }
+
         const subtotal = unitPrice * item.quantity;
         totalAmount += subtotal;
 
@@ -88,6 +97,7 @@ export class OrdersService {
       }
 
       const { items: _ignoredItems, ...shippingData } = createOrderDto;
+      void _ignoredItems;
       const order = manager.getRepository(Order).create({
         ...shippingData,
         totalAmount,
