@@ -46,6 +46,8 @@ Edit `.env` and set the required variables:
 # JWT Configuration - Change this to a random string in production (min 32 chars)
 JWT_SECRET=your-super-secret-jwt-key-change-in-production-min-32-chars
 JWT_REFRESH_SECRET=your-super-secret-refresh-key-change-in-production-min-32-chars
+JWT_EXPIRATION=1h
+JWT_REFRESH_EXPIRATION=7d
 
 # Database Configuration
 DATABASE_HOST=localhost
@@ -58,6 +60,15 @@ DATABASE_NAME=aromas_armonia_db
 NODE_ENV=development
 PORT=3000
 ```
+
+**JWT Configuration Details:**
+
+| Variable | Default | Description | Examples |
+|----------|---------|-------------|----------|
+| `JWT_SECRET` | *(required)* | Access token secret key (min 32 chars) | `your-super-secret-jwt-key-min-32-chars` |
+| `JWT_REFRESH_SECRET` | *(required)* | Refresh token secret key (min 32 chars) | `your-super-secret-refresh-key-min-32-chars` |
+| `JWT_EXPIRATION` | `1h` | Access token lifetime | `15m`, `1h`, `7d`, `30d` |
+| `JWT_REFRESH_EXPIRATION` | `7d` | Refresh token lifetime | `7d`, `14d`, `30d`, `90d` |
 
 ### 3. Generate JWT Secret
 
