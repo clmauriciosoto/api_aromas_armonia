@@ -14,11 +14,12 @@ Implemented stack:
 
 ## Business Rules
 
-1. Each product has a single inventory record (`UNIQUE(productId)`).
+1. Each product can have zero or one inventory record (`UNIQUE(productId)`).
 2. Stock can never be negative (`quantity >= 0` DB check + service validation).
 3. Order creation decreases stock in a single DB transaction.
 4. If stock is insufficient, API throws `BadRequestException` (HTTP 400).
 5. Only admins can query/adjust inventory.
+6. Inventory listing must include all active products, even without inventory row.
 
 ---
 
@@ -54,7 +55,12 @@ All endpoints require:
 - `@Roles(AdminRole.ADMIN)`
 
 ### GET `/inventory`
-Paginated listing with filters and sorting.
+Paginated listing based on products (not only inventory rows).
+
+Behavior:
+- Returns all active, non-archived products.
+- Uses `LEFT JOIN` with inventory.
+- If inventory row does not exist, quantity is returned as `0` and timestamps as `null`.
 
 Query params:
 - `page` (default `1`)
@@ -69,7 +75,11 @@ Response:
 - `PaginatedInventoryResponseDto`
 
 ### GET `/inventory/:productId`
-Returns one inventory record by product id.
+Returns inventory by product id.
+
+Behavior:
+- If product exists but inventory row does not, returns virtual inventory view with `quantity = 0`.
+- If product does not exist (or is archived), returns `404`.
 
 Response:
 - `InventoryResponseDto`
@@ -88,6 +98,7 @@ Rules:
 - Positive values increase stock
 - Negative values decrease stock
 - Resulting quantity must remain `>= 0`
+- If inventory row does not exist and adjustment is positive, row is auto-created with base quantity `0`
 - Operation executes in a DB transaction
 
 Response:
@@ -116,6 +127,10 @@ Service methods:
 Concurrency handling:
 - Uses `pessimistic_write` lock for stock mutation queries.
 - Uses deterministic lock order in order creation flow (sorted product IDs) to reduce deadlock probability.
+
+Listing strategy:
+- Product-driven query with `LEFT JOIN inventory` and `COALESCE(inventory.quantity, 0)`.
+- Pagination metadata (`total`, `page`, `limit`, `totalPages`) is calculated over products.
 
 Overflow protection:
 - Rejects quantities above PostgreSQL `int4` max (`2147483647`).
