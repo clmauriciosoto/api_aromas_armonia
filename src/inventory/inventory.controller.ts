@@ -41,9 +41,9 @@ export class InventoryController {
 
   @Get()
   @ApiOperation({
-    summary: 'List inventory records',
+    summary: 'List inventory for all products',
     description:
-      'Admin-only endpoint with pagination, product name filter, low-stock filter, and sorting.',
+      'Admin-only endpoint returning all active products with LEFT JOIN inventory. Products without inventory are returned with quantity=0.',
   })
   @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
   @ApiQuery({
@@ -90,7 +90,11 @@ export class InventoryController {
   }
 
   @Get(':productId')
-  @ApiOperation({ summary: 'Get inventory by product ID' })
+  @ApiOperation({
+    summary: 'Get inventory by product ID',
+    description:
+      'Returns quantity=0 when product exists but no inventory row has been created yet.',
+  })
   @ApiParam({ name: 'productId', type: Number, example: 1 })
   @ApiOkResponse({
     description: 'Inventory detail retrieved successfully',

@@ -10,6 +10,7 @@ import { Product } from '../products/entities/product.entity';
 import { GetInventoryQueryDto } from './dto/get-inventory-query.dto';
 import { PaginatedInventoryResponseDto } from './dto/paginated-inventory-response.dto';
 import { InventoryResponseDto } from './dto/inventory-response.dto';
+import { ProductStatus } from '../products/entities/product-status.enum';
 
 const MAX_DB_INT = 2147483647;
 
@@ -30,42 +31,83 @@ export class InventoryService {
     const limit = query.limit ?? 10;
     const skip = (page - 1) * limit;
 
-    const qb = this.inventoryRepository
-      .createQueryBuilder('inventory')
-      .leftJoinAndSelect('inventory.product', 'product');
+    const baseQb = this.productRepository
+      .createQueryBuilder('product')
+      .leftJoin(Inventory, 'inventory', 'inventory.productId = product.id')
+      .where('product.deletedAt IS NULL')
+      .andWhere('product.status != :archived', {
+        archived: ProductStatus.ARCHIVED,
+      });
 
     if (query.productName) {
-      qb.andWhere('product.name ILIKE :productName', {
+      baseQb.andWhere('product.name ILIKE :productName', {
         productName: `%${query.productName}%`,
       });
     }
 
     if (query.lowStock) {
-      qb.andWhere('inventory.quantity <= :threshold', {
+      baseQb.andWhere('COALESCE(inventory.quantity, 0) <= :threshold', {
         threshold: query.lowStockThreshold ?? 10,
       });
     }
 
     switch (query.sortBy) {
       case 'quantity':
-        qb.orderBy('inventory.quantity', query.sortOrder ?? 'DESC');
+        baseQb.orderBy(
+          'COALESCE(inventory.quantity, 0)',
+          query.sortOrder ?? 'DESC',
+        );
         break;
       case 'createdAt':
-        qb.orderBy('inventory.createdAt', query.sortOrder ?? 'DESC');
+        baseQb.orderBy(
+          'inventory.createdAt',
+          query.sortOrder ?? 'DESC',
+          'NULLS LAST',
+        );
         break;
       case 'productName':
-        qb.orderBy('product.name', query.sortOrder ?? 'DESC');
+        baseQb.orderBy('product.name', query.sortOrder ?? 'ASC');
         break;
       default:
-        qb.orderBy('inventory.updatedAt', query.sortOrder ?? 'DESC');
+        baseQb.orderBy(
+          'inventory.updatedAt',
+          query.sortOrder ?? 'DESC',
+          'NULLS LAST',
+        );
     }
 
-    qb.skip(skip).take(limit);
+    const total = await baseQb.getCount();
 
-    const [records, total] = await qb.getManyAndCount();
+    const rows = await baseQb
+      .clone()
+      .select([
+        'product.id AS "productId"',
+        'product.name AS "productName"',
+        'inventory.id AS "id"',
+        'COALESCE(inventory.quantity, 0) AS "quantity"',
+        'inventory.createdAt AS "createdAt"',
+        'inventory.updatedAt AS "updatedAt"',
+      ])
+      .skip(skip)
+      .take(limit)
+      .getRawMany<{
+        id: string | null;
+        productId: number;
+        productName: string;
+        quantity: string | number;
+        createdAt: Date | null;
+        updatedAt: Date | null;
+      }>();
 
     return {
-      data: records.map((record) => this.toResponseDto(record)),
+      data: rows.map((row) => ({
+        id: row.id,
+        productId: Number(row.productId),
+        productName: row.productName,
+        quantity: Number(row.quantity),
+        createdAt: row.createdAt,
+        updatedAt: row.updatedAt,
+      })),
       meta: {
         total,
         page,
@@ -76,18 +118,41 @@ export class InventoryService {
   }
 
   async findByProductId(productId: number): Promise<InventoryResponseDto> {
+    const product = await this.productRepository.findOne({
+      where: { id: productId },
+    });
+
+    if (
+      !product ||
+      product.deletedAt !== null ||
+      product.status === ProductStatus.ARCHIVED
+    ) {
+      throw new NotFoundException(`Product with id ${productId} not found`);
+    }
+
     const record = await this.inventoryRepository.findOne({
       where: { productId },
-      relations: ['product'],
     });
 
     if (!record) {
-      throw new NotFoundException(
-        `Inventory for product ${productId} not found`,
-      );
+      return {
+        id: null,
+        productId: product.id,
+        productName: product.name,
+        quantity: 0,
+        createdAt: null,
+        updatedAt: null,
+      };
     }
 
-    return this.toResponseDto(record);
+    return {
+      id: record.id,
+      productId: product.id,
+      productName: product.name,
+      quantity: record.quantity,
+      createdAt: record.createdAt,
+      updatedAt: record.updatedAt,
+    };
   }
 
   async adjustStock(
@@ -99,7 +164,11 @@ export class InventoryService {
         where: { id: productId },
       });
 
-      if (!product) {
+      if (
+        !product ||
+        product.deletedAt !== null ||
+        product.status === ProductStatus.ARCHIVED
+      ) {
         throw new NotFoundException(`Product with id ${productId} not found`);
       }
 
@@ -114,6 +183,7 @@ export class InventoryService {
         if (adjustment < 0) {
           throw new BadRequestException('Cannot reduce stock below zero');
         }
+
         inventory = inventoryRepo.create({
           productId,
           quantity: 0,
@@ -127,10 +197,14 @@ export class InventoryService {
       inventory.quantity = nextQuantity;
       const saved = await inventoryRepo.save(inventory);
 
-      return this.toResponseDto({
-        ...saved,
-        product,
-      });
+      return {
+        id: saved.id,
+        productId,
+        productName: product.name,
+        quantity: saved.quantity,
+        createdAt: saved.createdAt,
+        updatedAt: saved.updatedAt,
+      };
     });
   }
 
@@ -197,7 +271,12 @@ export class InventoryService {
         const product = await txManager.getRepository(Product).findOne({
           where: { id: productId },
         });
-        if (!product) {
+
+        if (
+          !product ||
+          product.deletedAt !== null ||
+          product.status === ProductStatus.ARCHIVED
+        ) {
           throw new NotFoundException(`Product with id ${productId} not found`);
         }
 
@@ -231,16 +310,5 @@ export class InventoryService {
     if (nextQuantity > MAX_DB_INT) {
       throw new BadRequestException('Stock quantity exceeds allowed limit');
     }
-  }
-
-  private toResponseDto(inventory: Inventory): InventoryResponseDto {
-    return {
-      id: inventory.id,
-      productId: inventory.productId,
-      productName: inventory.product?.name ?? '',
-      quantity: inventory.quantity,
-      createdAt: inventory.createdAt,
-      updatedAt: inventory.updatedAt,
-    };
   }
 }
