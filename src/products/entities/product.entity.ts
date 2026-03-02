@@ -75,6 +75,8 @@ export class Product {
 
   @OneToMany(() => ProductImage, (productImage) => productImage.product)
   images: ProductImage[];
+
+  stock?: number;
 }
 /*  {
     id: 1,

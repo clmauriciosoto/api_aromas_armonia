@@ -50,6 +50,8 @@ export class ProductsService {
     private readonly productRepository: Repository<Product>,
     @InjectRepository(Attribute)
     private readonly attributeRepository: Repository<Attribute>,
+    @InjectRepository(Inventory)
+    private readonly inventoryRepository: Repository<Inventory>,
     @InjectRepository(OrderItem)
     private readonly orderItemRepository: Repository<OrderItem>,
     private readonly dataSource: DataSource,
@@ -280,6 +282,22 @@ export class ProductsService {
     qb.skip((page - 1) * limit).take(limit);
 
     const [data, total] = await qb.getManyAndCount();
+
+    if (data.length > 0) {
+      const productIds = data.map((product) => product.id);
+      const inventories = await this.inventoryRepository.find({
+        where: { productId: In(productIds) },
+        select: ['productId', 'quantity'],
+      });
+
+      const inventoryByProductId = new Map<number, number>(
+        inventories.map((inventory) => [inventory.productId, inventory.quantity]),
+      );
+
+      data.forEach((product) => {
+        product.stock = inventoryByProductId.get(product.id) ?? 0;
+      });
+    }
 
     return {
       data,
