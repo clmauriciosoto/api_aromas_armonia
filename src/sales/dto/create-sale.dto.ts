@@ -4,6 +4,7 @@ import {
   IsArray,
   IsEmail,
   IsInt,
+  IsNumber,
   IsOptional,
   IsString,
   MaxLength,
@@ -31,6 +32,23 @@ export class CreateSaleDto {
   @IsOptional()
   @IsEmail()
   customerEmail?: string;
+
+  @ApiPropertyOptional({
+    description: 'Optional frontend payment method metadata',
+    example: 'cash',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  paymentMethod?: string;
+
+  @ApiPropertyOptional({
+    description: 'Optional frontend global discount metadata',
+    example: 0,
+  })
+  @IsOptional()
+  @IsNumber()
+  globalDiscount?: number;
 
   @ApiPropertyOptional({
     description: 'If provided, sale is linked to an order and type becomes ORDER',

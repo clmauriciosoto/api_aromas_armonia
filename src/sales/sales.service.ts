@@ -229,8 +229,10 @@ export class SalesService {
       }
 
       if (linkedOrder) {
+        const completedOrderStatus =
+          await this.resolveCompletedOrderStatus(queryRunner);
         await manager.getRepository(Order).update(linkedOrder.id, {
-          status: 'SOLD' as OrderStatus,
+          status: completedOrderStatus,
         });
       }
 
@@ -662,6 +664,27 @@ export class SalesService {
       .setLock('pessimistic_write')
       .where('inventory.productId = :productId', { productId })
       .getOne();
+  }
+
+  private async resolveCompletedOrderStatus(
+    queryRunner: ReturnType<DataSource['createQueryRunner']>,
+  ): Promise<OrderStatus> {
+    const rows = (await queryRunner.query(
+      `
+      SELECT EXISTS (
+        SELECT 1
+        FROM pg_type t
+        JOIN pg_enum e ON t.oid = e.enumtypid
+        WHERE t.typname = 'order_status_enum'
+          AND e.enumlabel = 'SOLD'
+      ) AS "hasSold"
+    `,
+    )) as Array<{ hasSold: boolean | string | number }>;
+
+    const rawHasSold = rows[0]?.hasSold;
+    const hasSold =
+      rawHasSold === true || rawHasSold === 't' || rawHasSold === 1;
+    return hasSold ? OrderStatus.SOLD : OrderStatus.PAID;
   }
 
   private normalizeItems(
