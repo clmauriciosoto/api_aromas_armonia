@@ -31,6 +31,7 @@ import { GetOrdersQueryDto } from './dto/get-orders-query.dto';
 import { PaginatedOrdersResponseDto } from './dto/paginated-orders-response.dto';
 import { OrderStatus } from './entities/order-status.enum';
 import { OrderDetailResponseDto } from './dto/order-detail-response.dto';
+import { OrderFeatureSettingsResponseDto } from './dto/order-feature-settings-response.dto';
 
 interface AuthenticatedRequest extends Request {
   user: {
@@ -44,6 +45,20 @@ interface AuthenticatedRequest extends Request {
 @Controller('orders')
 export class OrdersController {
   constructor(private readonly ordersService: OrdersService) {}
+
+  @ApiOperation({
+    summary: 'Get cart and checkout availability flags',
+    description:
+      'Frontend can use this endpoint to enable/disable cart UI and order confirmation button.',
+  })
+  @ApiOkResponse({
+    description: 'Current feature flags for cart and checkout',
+    type: OrderFeatureSettingsResponseDto,
+  })
+  @Get('availability')
+  getAvailability() {
+    return this.ordersService.getFeatureSettings();
+  }
 
   @Post()
   create(@Body() createOrderDto: CreateOrderDto) {

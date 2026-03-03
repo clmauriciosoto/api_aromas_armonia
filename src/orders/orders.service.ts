@@ -14,6 +14,9 @@ import { Product } from 'src/products/entities/product.entity';
 import { GetOrdersQueryDto } from './dto/get-orders-query.dto';
 import { PaginatedOrdersResponseDto } from './dto/paginated-orders-response.dto';
 import { OrderDetailResponseDto } from './dto/order-detail-response.dto';
+import { OrderFeatureSettings } from './entities/order-feature-settings.entity';
+import { OrderFeatureSettingsResponseDto } from './dto/order-feature-settings-response.dto';
+import { UpdateOrderFeatureSettingsDto } from './dto/update-order-feature-settings.dto';
 
 interface AuthenticatedUser {
   id?: string;
@@ -30,10 +33,75 @@ export class OrdersService {
     private readonly orderItemRepository: Repository<OrderItem>,
     @InjectRepository(Product)
     private readonly productRepository: Repository<Product>,
+    @InjectRepository(OrderFeatureSettings)
+    private readonly orderFeatureSettingsRepository: Repository<OrderFeatureSettings>,
     private readonly dataSource: DataSource,
   ) {}
 
+  private async getOrCreateFeatureSettings(): Promise<OrderFeatureSettings> {
+    let settings = await this.orderFeatureSettingsRepository.findOne({
+      where: { id: 1 },
+    });
+
+    if (!settings) {
+      settings = this.orderFeatureSettingsRepository.create({
+        id: 1,
+        cartEnabled: true,
+        checkoutEnabled: true,
+      });
+      settings = await this.orderFeatureSettingsRepository.save(settings);
+    }
+
+    return settings;
+  }
+
+  async getFeatureSettings(): Promise<OrderFeatureSettingsResponseDto> {
+    const settings = await this.getOrCreateFeatureSettings();
+    return {
+      cartEnabled: settings.cartEnabled,
+      checkoutEnabled: settings.checkoutEnabled,
+    };
+  }
+
+  async updateFeatureSettings(
+    payload: UpdateOrderFeatureSettingsDto,
+  ): Promise<OrderFeatureSettingsResponseDto> {
+    if (
+      typeof payload.cartEnabled === 'undefined' &&
+      typeof payload.checkoutEnabled === 'undefined'
+    ) {
+      throw new BadRequestException(
+        'At least one setting must be provided: cartEnabled or checkoutEnabled',
+      );
+    }
+
+    const settings = await this.getOrCreateFeatureSettings();
+
+    if (typeof payload.cartEnabled !== 'undefined') {
+      settings.cartEnabled = payload.cartEnabled;
+    }
+
+    if (typeof payload.checkoutEnabled !== 'undefined') {
+      settings.checkoutEnabled = payload.checkoutEnabled;
+    }
+
+    const updated = await this.orderFeatureSettingsRepository.save(settings);
+
+    return {
+      cartEnabled: updated.cartEnabled,
+      checkoutEnabled: updated.checkoutEnabled,
+    };
+  }
+
   async create(createOrderDto: CreateOrderDto): Promise<Order> {
+    const settings = await this.getFeatureSettings();
+
+    if (!settings.checkoutEnabled) {
+      throw new ForbiddenException(
+        'Order confirmation is currently disabled',
+      );
+    }
+
     const { items } = createOrderDto;
 
     if (!items?.length) {

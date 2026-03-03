@@ -1,7 +1,9 @@
 import {
+  Body,
   Controller,
   Get,
   Param,
+  Patch,
   ParseIntPipe,
   Query,
   Req,
@@ -28,6 +30,8 @@ import { GetOrdersQueryDto } from './dto/get-orders-query.dto';
 import { PaginatedOrdersResponseDto } from './dto/paginated-orders-response.dto';
 import { OrderStatus } from './entities/order-status.enum';
 import { OrderDetailResponseDto } from './dto/order-detail-response.dto';
+import { UpdateOrderFeatureSettingsDto } from './dto/update-order-feature-settings.dto';
+import { OrderFeatureSettingsResponseDto } from './dto/order-feature-settings-response.dto';
 
 interface AuthenticatedRequest extends Request {
   user: {
@@ -44,6 +48,26 @@ interface AuthenticatedRequest extends Request {
 @ApiBearerAuth('bearer')
 export class AdminOrdersController {
   constructor(private readonly ordersService: OrdersService) {}
+
+  @ApiOperation({ summary: 'Get cart/checkout feature flags (admin)' })
+  @ApiOkResponse({
+    description: 'Current feature flags',
+    type: OrderFeatureSettingsResponseDto,
+  })
+  @Get('settings')
+  getSettings() {
+    return this.ordersService.getFeatureSettings();
+  }
+
+  @ApiOperation({ summary: 'Update cart/checkout feature flags (admin)' })
+  @ApiOkResponse({
+    description: 'Updated feature flags',
+    type: OrderFeatureSettingsResponseDto,
+  })
+  @Patch('settings')
+  updateSettings(@Body() payload: UpdateOrderFeatureSettingsDto) {
+    return this.ordersService.updateFeatureSettings(payload);
+  }
 
   @ApiOperation({
     summary: 'List orders with pagination and filters (admin)',
