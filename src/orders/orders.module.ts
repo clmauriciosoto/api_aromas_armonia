@@ -6,13 +6,9 @@ import { AdminOrdersController } from './admin-orders.controller';
 import { Order } from './entities/order.entity';
 import { OrderItem } from './entities/order-item.entity';
 import { Product } from '../products/entities/product.entity';
-import { InventoryModule } from '../inventory/inventory.module';
 
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([Order, OrderItem, Product]),
-    InventoryModule,
-  ],
+  imports: [TypeOrmModule.forFeature([Order, OrderItem, Product])],
   controllers: [OrdersController, AdminOrdersController],
   providers: [OrdersService],
 })

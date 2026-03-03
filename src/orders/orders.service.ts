@@ -14,7 +14,6 @@ import { Product } from 'src/products/entities/product.entity';
 import { GetOrdersQueryDto } from './dto/get-orders-query.dto';
 import { PaginatedOrdersResponseDto } from './dto/paginated-orders-response.dto';
 import { OrderDetailResponseDto } from './dto/order-detail-response.dto';
-import { InventoryService } from '../inventory/inventory.service';
 
 interface AuthenticatedUser {
   id?: string;
@@ -31,7 +30,6 @@ export class OrdersService {
     private readonly orderItemRepository: Repository<OrderItem>,
     @InjectRepository(Product)
     private readonly productRepository: Repository<Product>,
-    private readonly inventoryService: InventoryService,
     private readonly dataSource: DataSource,
   ) {}
 
@@ -43,21 +41,6 @@ export class OrdersService {
     }
 
     return this.dataSource.transaction(async (manager) => {
-      const productQuantities = new Map<number, number>();
-
-      for (const item of items) {
-        const previous = productQuantities.get(item.productId) ?? 0;
-        productQuantities.set(item.productId, previous + item.quantity);
-      }
-
-      const productIdsToLock = [...productQuantities.keys()].sort(
-        (a, b) => a - b,
-      );
-      for (const productId of productIdsToLock) {
-        const quantity = productQuantities.get(productId) ?? 0;
-        await this.inventoryService.decreaseStock(productId, quantity, manager);
-      }
-
       let totalAmount = 0;
       const orderItems: OrderItem[] = [];
       const productCache = new Map<number, Product>();
@@ -76,7 +59,11 @@ export class OrdersService {
           productCache.set(item.productId, product);
         }
 
-        const unitPrice = Number(product.discountPrice ?? product.price);
+        const hasDiscount =
+          product.discountPrice !== null && product.discountPrice > 0;
+        const unitPrice = Number(
+          hasDiscount ? product.discountPrice : product.price,
+        );
 
         if (!Number.isFinite(unitPrice) || unitPrice < 0) {
           throw new BadRequestException(
