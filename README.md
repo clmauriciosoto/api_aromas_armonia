@@ -55,6 +55,16 @@ La creación de órdenes se ejecuta en una transacción única:
 2. Crea orden e ítems.
 3. Si falla cualquier validación de stock, se hace rollback completo.
 
+## Flags de carrito y checkout
+
+Endpoints para controlar disponibilidad desde frontend y administración:
+
+- `GET /orders/availability` (público: estado de `cartEnabled` y `checkoutEnabled`)
+- `GET /admin/orders/settings` (admin: consulta flags actuales)
+- `PATCH /admin/orders/settings` (admin: actualiza flags)
+
+Si `checkoutEnabled=false`, `POST /orders` responde `403` y bloquea confirmar pedido.
+
 ## Documentación adicional
 
 - `QUICK_START.md`
