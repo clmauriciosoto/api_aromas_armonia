@@ -65,6 +65,34 @@ Endpoints para controlar disponibilidad desde frontend y administración:
 
 Si `checkoutEnabled=false`, `POST /orders` responde `403` y bloquea confirmar pedido.
 
+## Cloudinary (uploads desde el backend)
+
+Variables requeridas:
+
+- `CLOUDINARY_CLOUD_NAME`
+- `CLOUDINARY_API_KEY`
+- `CLOUDINARY_API_SECRET`
+
+El frontend envía el archivo directamente al backend — Cloudinary es un detalle de implementación invisible para el cliente.
+
+Endpoint (admin):
+
+- `POST /storage/products/:productId/images`
+- `Content-Type: multipart/form-data`
+- Campo: `file` (imagen, máx. 5 MB)
+
+Respuesta:
+
+```json
+{
+  "id": 1,
+  "productId": 42,
+  "url": "https://res.cloudinary.com/...",
+  "position": 0,
+  "isPrimary": true
+}
+```
+
 ## Documentación adicional
 
 ```bash
