@@ -3,11 +3,19 @@ import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
-const loadOrigin = () => {
+const loadOrigins = (): string[] => {
+  return (process.env.ORIGIN ?? '')
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean);
+};
+
+const isLocalhostOrigin = (origin: string): boolean => {
   try {
-    return process.env.ORIGIN!.split(',');
+    const url = new URL(origin);
+    return url.hostname === 'localhost' || url.hostname === '127.0.0.1';
   } catch {
-    throw new Error('ORIGIN variable is not set properly');
+    return false;
   }
 };
 
@@ -42,8 +50,29 @@ async function bootstrap() {
     },
   });
 
+  const allowedOrigins = new Set(loadOrigins());
+  const isProduction = process.env.NODE_ENV === 'production';
+
   app.enableCors({
-    origin: loadOrigin(),
+    origin: (origin, callback) => {
+      if (!origin) {
+        callback(null, true);
+        return;
+      }
+
+      if (allowedOrigins.has(origin)) {
+        callback(null, true);
+        return;
+      }
+
+      if (!isProduction && isLocalhostOrigin(origin)) {
+        callback(null, true);
+        return;
+      }
+
+      callback(new Error(`CORS blocked for origin: ${origin}`), false);
+    },
+    credentials: true,
   });
   await app.listen(process.env.PORT ?? 3000);
 }
