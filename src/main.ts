@@ -1,6 +1,6 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
-import { ValidationPipe } from '@nestjs/common';
+import { Logger, ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
 const loadOrigins = (): string[] => {
@@ -21,6 +21,7 @@ const isLocalhostOrigin = (origin: string): boolean => {
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  const corsLogger = new Logger('CORS');
   app.useGlobalPipes(
     new ValidationPipe({
       transform: true,
@@ -53,6 +54,10 @@ async function bootstrap() {
   const allowedOrigins = new Set(loadOrigins());
   const isProduction = process.env.NODE_ENV === 'production';
 
+  corsLogger.log(
+    `Allowed origins: ${Array.from(allowedOrigins).join(', ') || '(none configured)'}`,
+  );
+
   app.enableCors({
     origin: (origin, callback) => {
       if (!origin) {
@@ -70,6 +75,7 @@ async function bootstrap() {
         return;
       }
 
+      corsLogger.warn(`Blocked origin: ${origin}`);
       callback(new Error(`CORS blocked for origin: ${origin}`), false);
     },
     credentials: true,
