@@ -133,4 +133,4 @@ feat: agregar subida de pdf
 fix: corregir validación de archivo
 ```
 
-> Si un commit no cumple Conventional Commits, el hook `commit-msg` de Husky lo bloquea automáticamente.
+
