@@ -1,3 +1,9 @@
+## [1.4.1](https://github.com/clmauriciosoto/api_aromas_armonia/compare/v1.4.0...v1.4.1) (2026-03-15)
+
+### Bug Fixes
+
+* **package-lock:** remove unused optional dependencies to reduce package size ([2c7cb03](https://github.com/clmauriciosoto/api_aromas_armonia/commit/2c7cb035df3ef3fb7223bc52a40154121766c84b))
+
 ## [1.4.0](https://github.com/clmauriciosoto/api_aromas_armonia/compare/v1.3.0...v1.4.0) (2026-03-15)
 
 ### Features
