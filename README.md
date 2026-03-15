@@ -102,7 +102,7 @@ Nest is an MIT-licensed open source project. It can grow thanks to the sponsors 
 - `SETUP_AUTH.md`
 - `FILES_SUMMARY.md`
 
-## Versionado automático y releases de prueba
+## Versionado automático
 
 Este repositorio usa **Conventional Commits + Semantic Release** para automatizar versiones y releases en GitHub al hacer push a `main`.
 
