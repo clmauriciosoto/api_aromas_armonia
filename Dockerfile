@@ -27,7 +27,7 @@ COPY --from=builder /usr/src/app/dist ./dist
 COPY package*.json ./
 
 # Instalar solo dependencias de producción
-RUN npm ci --omit=dev
+RUN npm ci --omit=dev --ignore-scripts
 
 # Copiar archivo .env para ejecución dentro del contenedor
 COPY .env .env
