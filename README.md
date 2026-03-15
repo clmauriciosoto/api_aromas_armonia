@@ -95,4 +95,42 @@ Nest is an MIT-licensed open source project. It can grow thanks to the sponsors 
 
 ## License
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+- `QUICK_START.md`
+- `AUTH_README.md`
+- `AUTH_MODULE.md`
+- `INVENTORY_MODULE.md`
+- `SETUP_AUTH.md`
+- `FILES_SUMMARY.md`
+
+## Versionado automático y releases
+
+Este repositorio usa **Conventional Commits + Semantic Release** para automatizar versiones y releases en GitHub al hacer push a `main`.
+
+Flujo automático en `main`:
+
+- Analiza commits convencionales
+- Calcula si el release es `major`, `minor` o `patch`
+- Incrementa versión en `package.json`
+- Crea tag `vX.X.X`
+- Actualiza `CHANGELOG.md`
+- Crea commit `chore(release): X.X.X`
+- Publica release en GitHub
+
+### Ejemplos de commits válidos
+
+```bash
+feat: agregar subida de imagen
+fix: corregir error en login
+docs: actualizar documentación
+refactor: mejorar servicio de usuarios
+feat!: cambiar contrato de API
+```
+
+Más ejemplos:
+
+```bash
+feat: agregar subida de pdf
+fix: corregir validación de archivo
+```
+
+> Si un commit no cumple Conventional Commits, el hook `commit-msg` de Husky lo bloquea automáticamente.
