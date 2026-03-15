@@ -1,3 +1,9 @@
+## [1.4.2](https://github.com/clmauriciosoto/api_aromas_armonia/compare/v1.4.1...v1.4.2) (2026-03-15)
+
+### Bug Fixes
+
+* add --ignore-scripts flag to npm ci for production dependencies ([e06749a](https://github.com/clmauriciosoto/api_aromas_armonia/commit/e06749a12e513a61a84fa582ad986c6ae9d421f3))
+
 ## [1.4.1](https://github.com/clmauriciosoto/api_aromas_armonia/compare/v1.4.0...v1.4.1) (2026-03-15)
 
 ### Bug Fixes
