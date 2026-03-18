@@ -1,3 +1,9 @@
+## [1.6.0](https://github.com/clmauriciosoto/api_aromas_armonia/compare/v1.5.0...v1.6.0) (2026-03-18)
+
+### Features
+
+* add barcode support to product entity, DTOs, and service methods ([19994af](https://github.com/clmauriciosoto/api_aromas_armonia/commit/19994af1d4072401c5789e2ee5f92777a7f91ab2))
+
 ## [1.5.0](https://github.com/clmauriciosoto/api_aromas_armonia/compare/v1.4.2...v1.5.0) (2026-03-18)
 
 ### Features
