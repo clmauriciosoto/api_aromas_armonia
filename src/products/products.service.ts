@@ -13,6 +13,7 @@ import {
   EntityManager,
   FindOptionsWhere,
   In,
+  ILike,
   IsNull,
   Not,
   QueryFailedError,
@@ -144,11 +145,13 @@ export class ProductsService {
   ): Promise<PaginatedProductsResponse> {
     const page = query.page ?? 1;
     const limit = query.limit ?? 10;
+    const search = query.search?.trim();
 
-    const whereClause = {
+    const whereClause: FindOptionsWhere<Product> = {
       status: ProductStatus.ACTIVE,
       isPurchasable: true,
       deletedAt: IsNull(),
+      ...(search ? { name: ILike(`%${search}%`) } : {}),
     };
 
     const total = await this.productRepository.count({
