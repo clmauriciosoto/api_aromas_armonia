@@ -1,3 +1,9 @@
+## [1.5.0](https://github.com/clmauriciosoto/api_aromas_armonia/compare/v1.4.2...v1.5.0) (2026-03-18)
+
+### Features
+
+* add search functionality to GetPublicProductsQueryDto and ProductsService ([49c88d9](https://github.com/clmauriciosoto/api_aromas_armonia/commit/49c88d99bc4e1df33fb488b832301c2b6b56e6aa))
+
 ## [1.4.2](https://github.com/clmauriciosoto/api_aromas_armonia/compare/v1.4.1...v1.4.2) (2026-03-15)
 
 ### Bug Fixes
