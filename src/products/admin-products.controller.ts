@@ -41,6 +41,11 @@ export class AdminProductsController {
     return this.productsService.findOneAdmin(id);
   }
 
+  @Get('barcode/:barcode')
+  findOneByBarcode(@Param('barcode') barcode: string): Promise<Product> {
+    return this.productsService.findOneAdminByBarcode(barcode);
+  }
+
   @Post()
   create(@Body() createProductDto: CreateProductDto): Promise<Product> {
     return this.productsService.create(createProductDto);

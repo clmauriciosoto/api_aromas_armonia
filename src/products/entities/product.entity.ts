@@ -41,6 +41,9 @@ export class Product {
   vendorCode: string | null;
 
   @Column({ type: 'varchar', unique: true, nullable: true })
+  barcode: string | null;
+
+  @Column({ type: 'varchar', unique: true, nullable: true })
   slug: string | null;
 
   @Column({

@@ -72,6 +72,7 @@ export class ProductsService {
       await this.assertUniqueFields(
         productName,
         (createProductDto as { vendorCode?: string }).vendorCode,
+        (createProductDto as { barcode?: string }).barcode,
         undefined,
         queryRunner.manager,
       );
@@ -95,6 +96,7 @@ export class ProductsService {
         currency: 'CLP',
         vendorCode:
           (createProductDto as { vendorCode?: string }).vendorCode ?? null,
+        barcode: (createProductDto as { barcode?: string }).barcode ?? null,
         image: createProductDto.image ?? null,
         price,
         discountPrice,
@@ -251,7 +253,7 @@ export class ProductsService {
 
     if (query.search) {
       qb.andWhere(
-        '(product.name ILIKE :search OR product.shortDescription ILIKE :search OR product.vendorCode ILIKE :search)',
+        '(product.name ILIKE :search OR product.shortDescription ILIKE :search OR product.vendorCode ILIKE :search OR product.barcode ILIKE :search)',
         {
           search: `%${query.search}%`,
         },
@@ -327,6 +329,26 @@ export class ProductsService {
     return product;
   }
 
+  async findOneAdminByBarcode(barcode: string): Promise<Product> {
+    const normalizedBarcode = barcode.trim();
+
+    if (normalizedBarcode.length === 0) {
+      throw new BadRequestException('barcode must not be empty');
+    }
+
+    const product = await this.productRepository.findOne({
+      where: { barcode: normalizedBarcode },
+      relations: ['attributes', 'images'],
+      withDeleted: true,
+    });
+
+    if (!product) {
+      throw new NotFoundException('Product not found');
+    }
+
+    return product;
+  }
+
   async update(
     id: number,
     updateProductDto: UpdateProductDto,
@@ -369,14 +391,20 @@ export class ProductsService {
         updateProductDto.vendorCode === null
           ? undefined
           : (updateProductDto.vendorCode ?? product.vendorCode ?? undefined);
+      const nextBarcode =
+        updateProductDto.barcode === null
+          ? undefined
+          : (updateProductDto.barcode ?? product.barcode ?? undefined);
 
       if (
         updateProductDto.name !== undefined ||
-        updateProductDto.vendorCode !== undefined
+        updateProductDto.vendorCode !== undefined ||
+        updateProductDto.barcode !== undefined
       ) {
         await this.assertUniqueFields(
           nextName,
           nextVendorCode,
+          nextBarcode,
           product.id,
           queryRunner.manager,
         );
@@ -435,6 +463,10 @@ export class ProductsService {
         updateProductDto.vendorCode !== undefined
           ? updateProductDto.vendorCode
           : product.vendorCode;
+      product.barcode =
+        updateProductDto.barcode !== undefined
+          ? updateProductDto.barcode
+          : product.barcode;
       product.status = nextStatus;
       product.isPurchasable = isArchived
         ? false
@@ -545,6 +577,7 @@ export class ProductsService {
   private async assertUniqueFields(
     name: string,
     vendorCode?: string,
+    barcode?: string,
     ignoreProductId?: number,
     manager?: EntityManager,
   ): Promise<void> {
@@ -581,6 +614,23 @@ export class ProductsService {
       throw new ConflictException(
         'A product with this vendorCode already exists',
       );
+    }
+
+    if (!barcode) {
+      return;
+    }
+
+    const barcodeWhere: FindOptionsWhere<Product> = ignoreProductId
+      ? { barcode, id: Not(ignoreProductId) }
+      : { barcode };
+
+    const existingByBarcode = await repository.findOne({
+      where: barcodeWhere,
+      withDeleted: true,
+    });
+
+    if (existingByBarcode) {
+      throw new ConflictException('A product with this barcode already exists');
     }
   }
 
@@ -630,6 +680,7 @@ export class ProductsService {
       updateProductDto.name !== undefined ||
       updateProductDto.shortDescription !== undefined ||
       updateProductDto.vendorCode !== undefined ||
+      updateProductDto.barcode !== undefined ||
       updateProductDto.currency !== undefined ||
       updateProductDto.attributeIds !== undefined;
 

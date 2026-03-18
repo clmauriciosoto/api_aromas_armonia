@@ -41,6 +41,10 @@ export class CreateProductDto {
   vendorCode?: string;
 
   @IsOptional()
+  @IsString()
+  barcode?: string;
+
+  @IsOptional()
   @IsBoolean()
   isPurchasable?: boolean;
 

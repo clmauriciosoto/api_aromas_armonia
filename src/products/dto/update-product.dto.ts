@@ -64,6 +64,10 @@ export class UpdateProductDto {
   vendorCode?: string | null;
 
   @IsOptional()
+  @IsString()
+  barcode?: string | null;
+
+  @IsOptional()
   @IsEnum(ProductStatus)
   status?: ProductStatus;
 
