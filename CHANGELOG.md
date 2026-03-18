@@ -1,3 +1,9 @@
+## [1.7.0](https://github.com/clmauriciosoto/api_aromas_armonia/compare/v1.6.0...v1.7.0) (2026-03-18)
+
+### Features
+
+* add production migration scripts to package.json ([bd5d756](https://github.com/clmauriciosoto/api_aromas_armonia/commit/bd5d7563a8dee132b3d835943501a4c317f67f16))
+
 ## [1.6.0](https://github.com/clmauriciosoto/api_aromas_armonia/compare/v1.5.0...v1.6.0) (2026-03-18)
 
 ### Features
