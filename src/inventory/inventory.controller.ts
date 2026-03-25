@@ -5,6 +5,7 @@ import {
   Param,
   ParseIntPipe,
   Patch,
+  Post,
   Query,
   Req,
   UnauthorizedException,
@@ -33,6 +34,10 @@ import { GetInventoryQueryDto } from './dto/get-inventory-query.dto';
 import { PaginatedInventoryResponseDto } from './dto/paginated-inventory-response.dto';
 import { InventoryResponseDto } from './dto/inventory-response.dto';
 import { AdjustStockDto } from './dto/adjust-stock.dto';
+import { CreateInventoryMovementDto } from './dto/create-inventory-movement.dto';
+import { InventoryMovementResponseDto } from './dto/inventory-movement-response.dto';
+import { GetInventoryMovementsQueryDto } from './dto/get-inventory-movements-query.dto';
+import { PaginatedInventoryMovementsResponseDto } from './dto/paginated-inventory-movements-response.dto';
 
 interface AuthenticatedRequest extends Request {
   user: {
@@ -100,6 +105,24 @@ export class InventoryController {
     return this.inventoryService.findAll(query);
   }
 
+  @Get('movements')
+  @ApiOperation({
+    summary: 'List grouped inventory movements',
+    description:
+      'Returns paginated grouped movements with movement items and product references.',
+  })
+  @ApiOkResponse({
+    description: 'Inventory movements retrieved successfully',
+    type: PaginatedInventoryMovementsResponseDto,
+  })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  @ApiForbiddenResponse({ description: 'Forbidden - admin role required' })
+  findMovements(
+    @Query() query: GetInventoryMovementsQueryDto,
+  ): Promise<PaginatedInventoryMovementsResponseDto> {
+    return this.inventoryService.findMovements(query);
+  }
+
   @Get(':productId')
   @ApiOperation({
     summary: 'Get inventory by product ID',
@@ -146,4 +169,32 @@ export class InventoryController {
 
     return this.inventoryService.adjustStock(productId, dto.adjustment, actorId);
   }
+
+  @Post('movements')
+  @ApiOperation({
+    summary: 'Register inventory movement with multiple products',
+    description:
+      'Creates a grouped inventory movement and updates stock atomically for each included product.',
+  })
+  @ApiBody({ type: CreateInventoryMovementDto })
+  @ApiOkResponse({
+    description: 'Inventory movement created successfully',
+    type: InventoryMovementResponseDto,
+  })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  @ApiForbiddenResponse({ description: 'Forbidden - admin role required' })
+  @ApiBadRequestResponse({ description: 'Invalid movement payload' })
+  @ApiNotFoundResponse({ description: 'Product not found' })
+  createMovement(
+    @Body() dto: CreateInventoryMovementDto,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<InventoryMovementResponseDto> {
+    const actorId = req.user?.id ?? req.user?.sub;
+    if (!actorId) {
+      throw new UnauthorizedException('Authenticated user id not found');
+    }
+
+    return this.inventoryService.createMovement(dto, actorId);
+  }
+
 }

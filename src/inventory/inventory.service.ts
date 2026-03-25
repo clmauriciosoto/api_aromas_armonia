@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, EntityManager, Repository } from 'typeorm';
+import { DataSource, EntityManager, In, Repository } from 'typeorm';
 import { Inventory } from './entities/inventory.entity';
 import { Product } from '../products/entities/product.entity';
 import { GetInventoryQueryDto } from './dto/get-inventory-query.dto';
@@ -13,6 +13,19 @@ import { InventoryResponseDto } from './dto/inventory-response.dto';
 import { ProductStatus } from '../products/entities/product-status.enum';
 import { InventoryMovement } from '../sales/entities/inventory-movement.entity';
 import { InventoryMovementType } from '../sales/entities/inventory-movement-type.enum';
+import {
+  CreateInventoryMovementDto,
+  CreateInventoryMovementProductDto,
+} from './dto/create-inventory-movement.dto';
+import {
+  InventoryMovementItemResponseDto,
+  InventoryMovementResponseDto,
+} from './dto/inventory-movement-response.dto';
+import { InventoryBatchMovementType } from './entities/inventory-batch-movement-type.enum';
+import { InventoryBatchMovement } from './entities/inventory-batch-movement.entity';
+import { InventoryBatchMovementItem } from './entities/inventory-batch-movement-item.entity';
+import { GetInventoryMovementsQueryDto } from './dto/get-inventory-movements-query.dto';
+import { PaginatedInventoryMovementsResponseDto } from './dto/paginated-inventory-movements-response.dto';
 
 const MAX_DB_INT = 2147483647;
 
@@ -25,8 +38,211 @@ export class InventoryService {
     private readonly productRepository: Repository<Product>,
     @InjectRepository(InventoryMovement)
     private readonly inventoryMovementRepository: Repository<InventoryMovement>,
+    @InjectRepository(InventoryBatchMovement)
+    private readonly inventoryBatchMovementRepository: Repository<InventoryBatchMovement>,
     private readonly dataSource: DataSource,
   ) {}
+
+  async createMovement(
+    dto: CreateInventoryMovementDto,
+    actorId: string,
+  ): Promise<InventoryMovementResponseDto> {
+    if (dto.type !== InventoryBatchMovementType.IN) {
+      throw new BadRequestException(
+        'Only IN movements are supported in this endpoint for now',
+      );
+    }
+
+    const normalizedProducts = this.aggregateMovementProducts(dto.products);
+    const productIds = normalizedProducts.map((item) => item.productId);
+
+    return this.dataSource.transaction(async (manager) => {
+      const products = await manager.getRepository(Product).findBy({
+        id: In(productIds),
+      });
+      const productMap = new Map(
+        products.map((product) => [product.id, product]),
+      );
+
+      for (const item of normalizedProducts) {
+        const product = productMap.get(item.productId);
+        if (!product) {
+          throw new NotFoundException(
+            `Product with id ${item.productId} not found`,
+          );
+        }
+
+        if (
+          product.deletedAt !== null ||
+          product.status === ProductStatus.ARCHIVED
+        ) {
+          throw new BadRequestException(
+            `Product with id ${item.productId} is not available`,
+          );
+        }
+      }
+
+      const movement = await manager.getRepository(InventoryBatchMovement).save(
+        manager.getRepository(InventoryBatchMovement).create({
+          type: dto.type,
+          createdBy: actorId,
+        }),
+      );
+
+      const movementItems: InventoryBatchMovementItem[] = [];
+      const responseItems: InventoryMovementItemResponseDto[] = [];
+
+      for (const item of normalizedProducts) {
+        const inventoryRepo = manager.getRepository(Inventory);
+        let inventory = await inventoryRepo
+          .createQueryBuilder('inventory')
+          .setLock('pessimistic_write')
+          .where('inventory.productId = :productId', {
+            productId: item.productId,
+          })
+          .getOne();
+
+        if (!inventory) {
+          inventory = inventoryRepo.create({
+            productId: item.productId,
+            quantity: 0,
+            reservedQuantity: 0,
+          });
+        }
+
+        const previousQuantity = inventory.quantity;
+        const nextQuantity = previousQuantity + item.quantity;
+        this.validateQuantity(nextQuantity);
+
+        inventory.quantity = nextQuantity;
+        const savedInventory = await inventoryRepo.save(inventory);
+
+        const productName = productMap.get(item.productId)?.name ?? '';
+
+        movementItems.push(
+          manager.getRepository(InventoryBatchMovementItem).create({
+            movementId: movement.id,
+            productId: item.productId,
+            quantity: item.quantity,
+          }),
+        );
+
+        await manager.getRepository(InventoryMovement).save(
+          manager.getRepository(InventoryMovement).create({
+            productId: item.productId,
+            type: InventoryMovementType.RESTOCK,
+            quantityChange: item.quantity,
+            previousQuantity,
+            newQuantity: savedInventory.quantity,
+            saleId: null,
+            note: `Batch movement ${movement.id}`,
+            createdBy: actorId,
+          }),
+        );
+
+        responseItems.push({
+          id: '',
+          productId: item.productId,
+          productName,
+          quantity: item.quantity,
+          previousQuantity,
+          newQuantity: savedInventory.quantity,
+        });
+      }
+
+      const savedItems = await manager
+        .getRepository(InventoryBatchMovementItem)
+        .save(movementItems);
+
+      const itemsByProductId = new Map(
+        savedItems.map((savedItem) => [savedItem.productId, savedItem.id]),
+      );
+
+      for (const responseItem of responseItems) {
+        responseItem.id = itemsByProductId.get(responseItem.productId) ?? '';
+      }
+
+      return {
+        id: movement.id,
+        type: movement.type,
+        createdBy: movement.createdBy,
+        createdAt: movement.createdAt,
+        items: responseItems,
+      };
+    });
+  }
+
+  async findMovements(
+    query: GetInventoryMovementsQueryDto,
+  ): Promise<PaginatedInventoryMovementsResponseDto> {
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 10;
+    const skip = (page - 1) * limit;
+
+    const qb = this.inventoryBatchMovementRepository
+      .createQueryBuilder('movement')
+      .leftJoinAndSelect('movement.items', 'items')
+      .leftJoinAndSelect('items.product', 'product')
+      .orderBy('movement.createdAt', 'DESC')
+      .skip(skip)
+      .take(limit);
+    const { type, createdBy, startDate, endDate } = query;
+
+    if (type) {
+      qb.andWhere('movement.type = :type', { type });
+    }
+
+    if (typeof createdBy === 'string') {
+      qb.andWhere('movement.createdBy = :createdBy', {
+        createdBy,
+      });
+    }
+
+    if (typeof startDate === 'string') {
+      qb.andWhere('movement.createdAt >= :startDate', {
+        startDate,
+      });
+    }
+
+    if (typeof endDate === 'string') {
+      qb.andWhere('movement.createdAt <= :endDate', {
+        endDate,
+      });
+    }
+
+    if (typeof startDate === 'string' && typeof endDate === 'string') {
+      const startDateValue = new Date(startDate);
+      const endDateValue = new Date(endDate);
+      if (startDateValue > endDateValue) {
+        throw new BadRequestException(
+          'startDate cannot be greater than endDate',
+        );
+      }
+    }
+
+    const [movements, total] = await qb.getManyAndCount();
+
+    return {
+      data: movements.map((movement) => ({
+        id: movement.id,
+        type: movement.type,
+        createdBy: movement.createdBy,
+        createdAt: movement.createdAt,
+        items: movement.items.map((item) => ({
+          id: item.id,
+          productId: item.productId,
+          productName: item.product?.name ?? '',
+          quantity: item.quantity,
+        })),
+      })),
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
 
   async findAll(
     query: GetInventoryQueryDto,
@@ -336,5 +552,25 @@ export class InventoryService {
     if (nextQuantity > MAX_DB_INT) {
       throw new BadRequestException('Stock quantity exceeds allowed limit');
     }
+  }
+
+  private aggregateMovementProducts(
+    products: CreateInventoryMovementProductDto[],
+  ): CreateInventoryMovementProductDto[] {
+    const quantitiesByProduct = new Map<number, number>();
+
+    for (const product of products) {
+      quantitiesByProduct.set(
+        product.productId,
+        (quantitiesByProduct.get(product.productId) ?? 0) + product.quantity,
+      );
+    }
+
+    return Array.from(quantitiesByProduct.entries()).map(
+      ([productId, quantity]) => ({
+        productId,
+        quantity,
+      }),
+    );
   }
 }
