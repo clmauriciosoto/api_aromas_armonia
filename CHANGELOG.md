@@ -1,3 +1,9 @@
+## [1.8.0](https://github.com/clmauriciosoto/api_aromas_armonia/compare/v1.7.0...v1.8.0) (2026-03-25)
+
+### Features
+
+* implement inventory batch movement functionality with DTOs, services, and controller methods ([a041225](https://github.com/clmauriciosoto/api_aromas_armonia/commit/a041225f0dbfbcabcb689ed54b549e1a8a4b661f))
+
 ## [1.7.0](https://github.com/clmauriciosoto/api_aromas_armonia/compare/v1.6.0...v1.7.0) (2026-03-18)
 
 ### Features
