@@ -1,3 +1,9 @@
+## [1.9.0](https://github.com/clmauriciosoto/api_aromas_armonia/compare/v1.8.0...v1.9.0) (2026-03-25)
+
+### Features
+
+* update inventory movement response DTO to include sales prefix and adjust related service and controller references ([49d40ec](https://github.com/clmauriciosoto/api_aromas_armonia/commit/49d40ece0f43a214041dd7e7ab82c71c957f3ca7))
+
 ## [1.8.0](https://github.com/clmauriciosoto/api_aromas_armonia/compare/v1.7.0...v1.8.0) (2026-03-25)
 
 ### Features
