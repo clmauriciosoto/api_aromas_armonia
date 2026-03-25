@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { InventoryMovementResponseDto } from './inventory-movement-response.dto';
+import { SalesInventoryMovementResponseDto } from './inventory-movement-response.dto';
 
 class PaginationMetaDto {
   @ApiProperty()
@@ -16,8 +16,8 @@ class PaginationMetaDto {
 }
 
 export class PaginatedMovementsResponseDto {
-  @ApiProperty({ type: [InventoryMovementResponseDto] })
-  data!: InventoryMovementResponseDto[];
+  @ApiProperty({ type: [SalesInventoryMovementResponseDto] })
+  data!: SalesInventoryMovementResponseDto[];
 
   @ApiProperty({ type: PaginationMetaDto })
   meta!: PaginationMetaDto;

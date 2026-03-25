@@ -2,6 +2,8 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 const loadOrigins = (): string[] => {
   return (process.env.ORIGIN ?? '')
@@ -19,9 +21,23 @@ const isLocalhostOrigin = (origin: string): boolean => {
   }
 };
 
+const loadAppVersion = (): string => {
+  try {
+    const packageJsonPath = join(process.cwd(), 'package.json');
+    const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf8')) as {
+      version?: string;
+    };
+    return packageJson.version ?? 'unknown';
+  } catch {
+    return 'unknown';
+  }
+};
+
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  const appLogger = new Logger('AppVersion');
   const corsLogger = new Logger('CORS');
+  appLogger.log(`Version deployed: ${loadAppVersion()}`);
   app.useGlobalPipes(
     new ValidationPipe({
       transform: true,

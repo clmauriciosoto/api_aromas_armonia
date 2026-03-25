@@ -27,7 +27,7 @@ import { SaleResponseDto } from './dto/sale-response.dto';
 import { InventoryMovementType } from './entities/inventory-movement-type.enum';
 import { RestockInventoryDto } from './dto/restock-inventory.dto';
 import { AdjustInventoryDto } from './dto/adjust-inventory.dto';
-import { InventoryMovementResponseDto } from './dto/inventory-movement-response.dto';
+import { SalesInventoryMovementResponseDto } from './dto/inventory-movement-response.dto';
 import { PaginatedMovementsResponseDto } from './dto/paginated-movements-response.dto';
 import { GetMovementsQueryDto } from './dto/get-movements-query.dto';
 import { GetSalesSummaryQueryDto } from './dto/get-sales-summary-query.dto';
@@ -380,7 +380,7 @@ export class SalesService {
   async restockInventory(
     dto: RestockInventoryDto,
     user: AuthenticatedUser,
-  ): Promise<InventoryMovementResponseDto> {
+  ): Promise<SalesInventoryMovementResponseDto> {
     const actorId = this.resolveActorId(user);
 
     return this.dataSource.transaction(async (manager) => {
@@ -432,7 +432,7 @@ export class SalesService {
   async adjustInventory(
     dto: AdjustInventoryDto,
     user: AuthenticatedUser,
-  ): Promise<InventoryMovementResponseDto> {
+  ): Promise<SalesInventoryMovementResponseDto> {
     const actorId = this.resolveActorId(user);
 
     if (dto.quantityChange === 0) {
@@ -750,7 +750,7 @@ export class SalesService {
   private toMovementResponse(
     movement: InventoryMovement,
     productName: string,
-  ): InventoryMovementResponseDto {
+  ): SalesInventoryMovementResponseDto {
     return {
       id: movement.id,
       productId: movement.productId,

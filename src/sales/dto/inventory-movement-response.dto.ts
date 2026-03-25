@@ -1,7 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { InventoryMovementType } from '../entities/inventory-movement-type.enum';
 
-export class InventoryMovementResponseDto {
+export class SalesInventoryMovementResponseDto {
   @ApiProperty()
   id!: string;
 

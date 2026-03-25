@@ -26,7 +26,7 @@ import { CreateSaleDto } from './dto/create-sale.dto';
 import { SaleResponseDto } from './dto/sale-response.dto';
 import { RestockInventoryDto } from './dto/restock-inventory.dto';
 import { AdjustInventoryDto } from './dto/adjust-inventory.dto';
-import { InventoryMovementResponseDto } from './dto/inventory-movement-response.dto';
+import { SalesInventoryMovementResponseDto } from './dto/inventory-movement-response.dto';
 import { GetSalesQueryDto } from './dto/get-sales-query.dto';
 import { PaginatedSalesResponseDto } from './dto/paginated-sales-response.dto';
 import { GetMovementsQueryDto } from './dto/get-movements-query.dto';
@@ -82,21 +82,21 @@ export class SalesController {
 
   @Post('inventory/restock')
   @ApiOperation({ summary: 'Register restock inventory movement' })
-  @ApiCreatedResponse({ type: InventoryMovementResponseDto })
+  @ApiCreatedResponse({ type: SalesInventoryMovementResponseDto })
   restockInventory(
     @Body() dto: RestockInventoryDto,
     @Req() req: AuthenticatedRequest,
-  ): Promise<InventoryMovementResponseDto> {
+  ): Promise<SalesInventoryMovementResponseDto> {
     return this.salesService.restockInventory(dto, req.user);
   }
 
   @Post('inventory/adjust')
   @ApiOperation({ summary: 'Register manual stock adjustment movement' })
-  @ApiCreatedResponse({ type: InventoryMovementResponseDto })
+  @ApiCreatedResponse({ type: SalesInventoryMovementResponseDto })
   adjustInventory(
     @Body() dto: AdjustInventoryDto,
     @Req() req: AuthenticatedRequest,
-  ): Promise<InventoryMovementResponseDto> {
+  ): Promise<SalesInventoryMovementResponseDto> {
     return this.salesService.adjustInventory(dto, req.user);
   }
 
