@@ -7,6 +7,12 @@ export class SaleResponseDto {
   @ApiProperty()
   id!: string;
 
+  @ApiProperty({ description: 'Número de venta secuencial' })
+  saleNumber!: number;
+
+  @ApiProperty({ nullable: true, description: 'Número de documento (único, no secuencial)' })
+  documentNumber!: number | null;
+
   @ApiProperty({ enum: SaleType })
   type!: SaleType;
 

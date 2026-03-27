@@ -4,6 +4,7 @@ import {
   Get,
   Param,
   ParseIntPipe,
+  Patch,
   Post,
   Query,
   Req,
@@ -33,6 +34,7 @@ import { GetMovementsQueryDto } from './dto/get-movements-query.dto';
 import { PaginatedMovementsResponseDto } from './dto/paginated-movements-response.dto';
 import { GetSalesSummaryQueryDto } from './dto/get-sales-summary-query.dto';
 import { SalesSummaryResponseDto } from './dto/sales-summary-response.dto';
+import { UpdateSaleDocumentDto } from './dto/update-sale-document.dto';
 
 interface AuthenticatedRequest extends Request {
   user: {
@@ -114,6 +116,19 @@ export class SalesController {
   @ApiOkResponse({ type: SaleResponseDto })
   findSaleById(@Param('id') id: string): Promise<SaleResponseDto> {
     return this.salesService.findSaleById(id);
+  }
+
+  @Patch('sales/:id/document')
+  @ApiOperation({ summary: 'Assign or update the document number of a sale' })
+  @ApiOkResponse({ type: SaleResponseDto })
+  updateDocumentNumber(
+    @Param('id') id: string,
+    @Body() dto: UpdateSaleDocumentDto,
+  ): Promise<SaleResponseDto> {
+    return this.salesService.updateDocumentNumber(
+      id,
+      dto.documentNumber ?? null,
+    );
   }
 
   @Get('inventory/movements')

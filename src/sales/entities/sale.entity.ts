@@ -28,6 +28,21 @@ export class Sale {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
+  /**
+   * Número de venta secuencial autogenerado por la base de datos.
+   * No se incluye en INSERT; el valor lo asigna la secuencia de PostgreSQL.
+   */
+  @Index({ unique: true })
+  @Column({ type: 'int', insert: false, update: false, nullable: false })
+  saleNumber!: number;
+
+  /**
+   * Número de documento (ej. boleta SII). Único, no secuencial y opcional.
+   */
+  @Index({ unique: true, where: '"documentNumber" IS NOT NULL' })
+  @Column({ type: 'int', nullable: true, unique: true })
+  documentNumber!: number | null;
+
   @Column({ type: 'enum', enum: SaleType })
   type!: SaleType;
 

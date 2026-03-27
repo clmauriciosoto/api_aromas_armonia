@@ -203,6 +203,7 @@ export class SalesService {
             ? `${linkedOrder.firstName} ${linkedOrder.lastName}`.trim()
             : null),
         customerEmail: dto.customerEmail ?? linkedOrder?.email ?? null,
+        documentNumber: dto.documentNumber ?? null,
         totalAmount,
         createdBy: actorId,
         items: saleItems,
@@ -556,6 +557,24 @@ export class SalesService {
     return this.toSaleResponse(sale);
   }
 
+  async updateDocumentNumber(
+    id: string,
+    documentNumber: number | null,
+  ): Promise<SaleResponseDto> {
+    const sale = await this.saleRepository.findOne({
+      where: { id },
+      relations: ['items'],
+    });
+
+    if (!sale) {
+      throw new NotFoundException('Sale not found');
+    }
+
+    sale.documentNumber = documentNumber;
+    const saved = await this.saleRepository.save(sale);
+    return this.toSaleResponse(saved);
+  }
+
   async findMovements(
     query: GetMovementsQueryDto,
   ): Promise<PaginatedMovementsResponseDto> {
@@ -728,6 +747,8 @@ export class SalesService {
   private toSaleResponse(sale: Sale): SaleResponseDto {
     return {
       id: sale.id,
+      saleNumber: sale.saleNumber,
+      documentNumber: sale.documentNumber,
       type: sale.type,
       status: sale.status,
       orderId: sale.orderId,

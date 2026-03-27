@@ -58,4 +58,13 @@ export class CreateSaleDto {
   @IsInt()
   @Min(1)
   orderId?: number;
+
+  @ApiPropertyOptional({
+    description: 'Número de documento (único, no secuencial)',
+    example: 1234567,
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  documentNumber?: number;
 }
