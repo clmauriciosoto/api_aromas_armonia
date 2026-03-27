@@ -1,3 +1,9 @@
+## [1.10.0](https://github.com/clmauriciosoto/api_aromas_armonia/compare/v1.9.0...v1.10.0) (2026-03-27)
+
+### Features
+
+* add saleNumber and documentNumber fields to sales entity, DTOs, and service methods; implement update functionality in controller ([5a88a34](https://github.com/clmauriciosoto/api_aromas_armonia/commit/5a88a3489309a270951e2c756a71c0e9014a5d22))
+
 ## [1.9.0](https://github.com/clmauriciosoto/api_aromas_armonia/compare/v1.8.0...v1.9.0) (2026-03-25)
 
 ### Features
