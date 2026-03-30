@@ -6,7 +6,7 @@ export class OrderListItemDto {
   @ApiProperty({ example: 1 })
   id: number;
 
-  @ApiProperty({ enum: OrderStatus, example: OrderStatus.PENDING })
+  @ApiProperty({ enum: OrderStatus, example: OrderStatus.PENDING_VALIDATION })
   status: OrderStatus;
 
   @ApiProperty({ example: 15990 })

@@ -32,6 +32,7 @@ import { PaginatedOrdersResponseDto } from './dto/paginated-orders-response.dto'
 import { OrderStatus } from './entities/order-status.enum';
 import { OrderDetailResponseDto } from './dto/order-detail-response.dto';
 import { OrderFeatureSettingsResponseDto } from './dto/order-feature-settings-response.dto';
+import { ValidateOrderDto } from './dto/validate-order.dto';
 
 interface AuthenticatedRequest extends Request {
   user: {
@@ -112,6 +113,27 @@ export class OrdersController {
   @Get()
   findAll(@Req() req: AuthenticatedRequest, @Query() query: GetOrdersQueryDto) {
     return this.ordersService.findAll(req.user, query);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Validate order decision (validated, waiting stock, or cancelled)' })
+  @ApiParam({
+    name: 'id',
+    type: Number,
+    description: 'Order ID (integer)',
+    example: 1,
+  })
+  @ApiResponse({ status: 200, description: 'Order validation decision applied' })
+  @ApiResponse({ status: 400, description: 'Invalid validation payload or transition' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Order not found' })
+  @Patch(':id/validate')
+  validate(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: ValidateOrderDto,
+  ) {
+    return this.ordersService.validateOrder(String(id), dto);
   }
 
   @UseGuards(JwtAuthGuard)

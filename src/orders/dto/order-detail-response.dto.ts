@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { PaymentMethod } from '../entities/payment-method.enum';
+import { OrderStatus } from '../entities/order-status.enum';
 
 class OrderDetailItemDto {
   @ApiProperty({ example: 1 })
@@ -11,8 +12,11 @@ class OrderDetailItemDto {
   @ApiProperty({ example: 'Elegance Noir' })
   productName: string;
 
-  @ApiProperty({ example: 2 })
+  @ApiProperty({ example: 2, description: 'Cantidad solicitada en la orden' })
   quantity: number;
+
+  @ApiProperty({ example: 8, description: 'Stock disponible actual' })
+  quantityAvailable: number;
 
   @ApiProperty({ example: 7995 })
   unitPrice: number;
@@ -25,11 +29,18 @@ export class OrderDetailResponseDto {
   @ApiProperty({ example: 1 })
   id: number;
 
-  @ApiProperty({ example: 'PAID' })
-  status: string;
+  @ApiProperty({ enum: OrderStatus, example: OrderStatus.PAID })
+  status: OrderStatus;
 
   @ApiProperty({ example: 15990 })
   totalAmount: number;
+
+  @ApiProperty({
+    required: false,
+    nullable: true,
+    example: '2026-04-05T15:00:00.000Z',
+  })
+  estimatedRestockDate?: Date | null;
 
   @ApiProperty({ example: '2026-02-26T10:30:00.000Z' })
   createdAt: Date;

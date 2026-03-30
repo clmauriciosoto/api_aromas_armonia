@@ -40,7 +40,7 @@ export class GetOrdersQueryDto {
   @ApiPropertyOptional({
     description: 'Filter by order status',
     enum: OrderStatus,
-    example: OrderStatus.PAID,
+    example: OrderStatus.AWAITING_PAYMENT,
   })
   @IsOptional()
   @IsEnum(OrderStatus)

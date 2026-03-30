@@ -7,6 +7,8 @@ import {
 } from 'typeorm';
 import { Order } from './order.entity';
 import { Product } from '../../products/entities/product.entity';
+import { OrderItemStatus } from './order-item-status.enum';
+import { OrderItemChangeHistoryEntry } from './order-item-change-history-entry.type';
 
 @Entity()
 export class OrderItem {
@@ -31,4 +33,17 @@ export class OrderItem {
 
   @Column('int')
   subtotal: number;
+
+  @Column({
+    type: 'enum',
+    enum: OrderItemStatus,
+    default: OrderItemStatus.ACTIVE,
+  })
+  status: OrderItemStatus;
+
+  @Column({
+    type: 'jsonb',
+    default: () => "'[]'::jsonb",
+  })
+  changeHistory: OrderItemChangeHistoryEntry[];
 }

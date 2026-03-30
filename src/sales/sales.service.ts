@@ -33,6 +33,7 @@ import { GetMovementsQueryDto } from './dto/get-movements-query.dto';
 import { GetSalesSummaryQueryDto } from './dto/get-sales-summary-query.dto';
 import { SalesSummaryResponseDto } from './dto/sales-summary-response.dto';
 import { OrderStatus } from '../orders/entities/order-status.enum';
+import { OrderItemStatus } from '../orders/entities/order-item-status.enum';
 import { ProductStatus } from '../products/entities/product-status.enum';
 
 interface AuthenticatedUser {
@@ -118,10 +119,7 @@ export class SalesService {
           throw new NotFoundException(`Order ${linkedOrderId} not found`);
         }
 
-        if (
-          linkedOrder.status !== OrderStatus.PENDING &&
-          linkedOrder.status !== OrderStatus.PAID
-        ) {
+        if (linkedOrder.status !== OrderStatus.PAID) {
           throw new ConflictException(
             `Order ${dto.orderId} has status ${linkedOrder.status} and cannot be converted`,
           );
@@ -230,10 +228,8 @@ export class SalesService {
       }
 
       if (linkedOrder) {
-        const completedOrderStatus =
-          await this.resolveCompletedOrderStatus(queryRunner);
         await manager.getRepository(Order).update(linkedOrder.id, {
-          status: completedOrderStatus,
+          status: OrderStatus.SALE_CREATED,
         });
       }
 
@@ -272,12 +268,20 @@ export class SalesService {
       throw new BadRequestException('Order has no items');
     }
 
+    const activeItems = order.items.filter(
+      (item) => item.status === OrderItemStatus.ACTIVE,
+    );
+
+    if (!activeItems.length) {
+      throw new BadRequestException('Order has no active items');
+    }
+
     return this.createSale(
       {
         orderId,
         customerName: `${order.firstName} ${order.lastName}`.trim(),
         customerEmail: order.email,
-        items: order.items.map((item) => ({
+        items: activeItems.map((item) => ({
           productId: item.productId,
           quantity: item.quantity,
           unitPrice: item.unitPrice,
@@ -363,7 +367,7 @@ export class SalesService {
         });
 
         if (order) {
-          order.status = sale.orderStatusBeforeSale ?? OrderStatus.PENDING;
+          order.status = sale.orderStatusBeforeSale ?? OrderStatus.PAID;
           await manager.getRepository(Order).save(order);
         }
       }
@@ -683,27 +687,6 @@ export class SalesService {
       .setLock('pessimistic_write')
       .where('inventory.productId = :productId', { productId })
       .getOne();
-  }
-
-  private async resolveCompletedOrderStatus(
-    queryRunner: ReturnType<DataSource['createQueryRunner']>,
-  ): Promise<OrderStatus> {
-    const rows = (await queryRunner.query(
-      `
-      SELECT EXISTS (
-        SELECT 1
-        FROM pg_type t
-        JOIN pg_enum e ON t.oid = e.enumtypid
-        WHERE t.typname = 'order_status_enum'
-          AND e.enumlabel = 'SOLD'
-      ) AS "hasSold"
-    `,
-    )) as Array<{ hasSold: boolean | string | number }>;
-
-    const rawHasSold = rows[0]?.hasSold;
-    const hasSold =
-      rawHasSold === true || rawHasSold === 't' || rawHasSold === 1;
-    return hasSold ? OrderStatus.SOLD : OrderStatus.PAID;
   }
 
   private normalizeItems(
