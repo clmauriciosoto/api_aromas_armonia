@@ -1,3 +1,9 @@
+## [1.11.0](https://github.com/clmauriciosoto/api_aromas_armonia/compare/v1.10.0...v1.11.0) (2026-03-30)
+
+### Features
+
+* enhance order workflow with validation and adjustment capabilities ([077c3e6](https://github.com/clmauriciosoto/api_aromas_armonia/commit/077c3e6d276417131d99fc7d0e2626ceb111b741))
+
 ## [1.10.0](https://github.com/clmauriciosoto/api_aromas_armonia/compare/v1.9.0...v1.10.0) (2026-03-27)
 
 ### Features
