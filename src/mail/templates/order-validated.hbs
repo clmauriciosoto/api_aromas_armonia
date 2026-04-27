@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pedido confirmado</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f4f4f4; margin: 0; padding: 0; }
+    .wrapper { max-width: 600px; margin: 32px auto; background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+    .header { background: #3d2b1f; padding: 32px 40px; text-align: center; }
+    .header h1 { color: #f5e6d3; margin: 0; font-size: 22px; letter-spacing: 1px; }
+    .body { padding: 32px 40px; color: #333; }
+    .body h2 { color: #3d2b1f; margin-top: 0; }
+    .highlight { background: #f5e6d3; border-left: 4px solid #a0522d; padding: 12px 16px; border-radius: 4px; margin: 20px 0; }
+    .detail-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #f0e8e0; font-size: 14px; }
+    .detail-row:last-child { border-bottom: none; }
+    .label { color: #888; }
+    .value { font-weight: 600; color: #333; }
+    .note { background: #fffae6; border: 1px solid #f0d060; border-radius: 4px; padding: 12px 16px; font-size: 13px; color: #7a6500; margin-top: 20px; }
+    .footer { background: #f9f3ee; padding: 20px 40px; text-align: center; font-size: 12px; color: #999; }
+    .footer a { color: #a0522d; text-decoration: none; }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="header">
+      <h1>Aromas de Armonía</h1>
+    </div>
+    <div class="body">
+      <h2>¡Tu pedido fue confirmado! ✅</h2>
+      <p>Hola <strong>{{firstName}} {{lastName}}</strong>,</p>
+      <p>Nos complace informarte que tu pedido <strong>#{{orderId}}</strong> ha sido <strong>revisado y confirmado</strong> por nuestro equipo.</p>
+
+      <div class="highlight">
+        <strong>Próximo paso:</strong> En breve recibirás los detalles de pago para completar tu compra.
+      </div>
+
+      <table width="100%" cellpadding="0" cellspacing="0" style="margin: 20px 0;">
+        <tr>
+          <td class="label" style="padding: 8px 0; color: #888; font-size: 14px;">N° de pedido</td>
+          <td class="value" style="padding: 8px 0; font-weight: 600; text-align: right;">#{{orderId}}</td>
+        </tr>
+        <tr>
+          <td class="label" style="padding: 8px 0; color: #888; font-size: 14px; border-top: 1px solid #f0e8e0;">Total</td>
+          <td class="value" style="padding: 8px 0; font-weight: 600; text-align: right; border-top: 1px solid #f0e8e0;">{{totalFormatted}}</td>
+        </tr>
+        <tr>
+          <td class="label" style="padding: 8px 0; color: #888; font-size: 14px; border-top: 1px solid #f0e8e0;">Método de pago</td>
+          <td class="value" style="padding: 8px 0; font-weight: 600; text-align: right; border-top: 1px solid #f0e8e0;">{{paymentMethodLabel}}</td>
+        </tr>
+        <tr>
+          <td class="label" style="padding: 8px 0; color: #888; font-size: 14px; border-top: 1px solid #f0e8e0;">Dirección de entrega</td>
+          <td class="value" style="padding: 8px 0; font-weight: 600; text-align: right; border-top: 1px solid #f0e8e0;">{{address}}</td>
+        </tr>
+      </table>
+
+      {{#if note}}
+      <div class="note">
+        <strong>Nota de nuestro equipo:</strong> {{note}}
+      </div>
+      {{/if}}
+
+      <p style="margin-top: 24px; font-size: 14px; color: #666;">Si tienes alguna consulta, contáctanos por nuestros canales habituales.</p>
+    </div>
+    <div class="footer">
+      <p>© 2025 Aromas de Armonía · Todos los derechos reservados</p>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pedido recibido</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f4f4f4; margin: 0; padding: 0; }
+    .wrapper { max-width: 700px; margin: 32px auto; background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+    .header { background: #3d2b1f; padding: 32px 40px; text-align: center; }
+    .header h1 { color: #f5e6d3; margin: 0; font-size: 22px; letter-spacing: 1px; }
+    .body { padding: 36px 44px; color: #333; }
+    .body h2 { color: #3d2b1f; margin-top: 0; font-size: 28px; line-height: 1.15; }
+    .body p { font-size: 15px; line-height: 1.55; }
+    .highlight { background: #f5e6d3; border-left: 4px solid #a0522d; padding: 14px 18px; border-radius: 4px; margin: 20px 0; font-size: 14px; }
+    .summary { margin: 24px 0; }
+    .summary td { padding: 10px 0; font-size: 15px; }
+    .summary .label { color: #888; }
+    .summary .value { font-weight: 600; text-align: right; }
+    .products-wrap { margin-top: 22px; border-top: 1px solid #f0e8e0; }
+    .product-row { padding: 18px 0; border-bottom: 1px solid #f0e8e0; }
+    .product-cell { display: flex; align-items: flex-start; gap: 24px; }
+    .product-thumb { width: 64px; height: 64px; border-radius: 10px; object-fit: cover; background: #f3ece6; display: block; }
+    .product-copy { padding-top: 3px; }
+    .product-name { font-weight: 700; color: #3d2b1f; font-size: 19px; line-height: 1.2; }
+    .product-meta { margin-top: 8px; color: #7e7167; font-size: 13px; line-height: 1.35; }
+    .product-total { margin-top: 10px; color: #3d2b1f; font-weight: 700; font-size: 16px; line-height: 1.25; }
+    .total-box { margin-top: 24px; padding: 16px 20px; background: #f9f3ee; border-radius: 6px; text-align: right; }
+    .total-box span { color: #6d4c41; font-size: 15px; }
+    .total-box strong { display: block; font-size: 30px; color: #3d2b1f; margin-top: 6px; }
+    .footer { background: #f9f3ee; padding: 20px 40px; text-align: center; font-size: 12px; color: #999; }
+
+    @media screen and (max-width: 540px) {
+      .wrapper { margin: 12px auto; border-radius: 0; }
+      .body { padding: 22px 16px; }
+      .header { padding: 22px 16px; }
+      .body h2 { font-size: 24px; }
+      .body p { font-size: 14px; }
+      .summary td { font-size: 14px; }
+      .product-cell { gap: 16px; }
+      .product-thumb { width: 40px; height: 40px; }
+      .product-name { font-size: 14px; }
+      .product-meta { font-size: 10px; }
+      .product-total { font-size: 12px; }
+      .total-box strong { font-size: 20px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="header">
+      <h1>Aromas de Armonía</h1>
+    </div>
+    <div class="body">
+      <h2>Recibimos tu pedido</h2>
+      <p>Hola <strong>{{firstName}} {{lastName}}</strong>,</p>
+      <p>Recibimos correctamente tu pedido <strong>#{{orderId}}</strong>. Nuestro equipo lo revisará y validará antes de avanzar al siguiente paso.</p>
+
+      <div class="highlight">
+        <strong>Estado actual:</strong> pedido recibido y pendiente de validación.
+      </div>
+
+      <table width="100%" cellpadding="0" cellspacing="0" class="summary">
+        <tr>
+          <td class="label">N° de pedido</td>
+          <td class="value">#{{orderId}}</td>
+        </tr>
+        <tr>
+          <td class="label">Método de pago</td>
+          <td class="value">{{paymentMethodLabel}}</td>
+        </tr>
+        <tr>
+          <td class="label">Dirección de entrega</td>
+          <td class="value">{{address}}</td>
+        </tr>
+        <tr>
+          <td class="label">Teléfono</td>
+          <td class="value">{{phone}}</td>
+        </tr>
+      </table>
+
+      <h3 style="color: #3d2b1f; margin-top: 32px; font-size: 24px; line-height: 1.2;">Detalle de productos</h3>
+      <div class="products-wrap">
+        {{#each products}}
+        <div class="product-row">
+          <div class="product-cell">
+            {{#if this.imageUrl}}
+            <img class="product-thumb" src="{{this.imageUrl}}" alt="{{this.name}}" />
+            {{/if}}
+            <div class="product-copy">
+              <div class="product-name">{{this.name}}</div>
+              <div class="product-meta">Cant: {{this.quantity}} · Unit: {{this.unitPriceFormatted}}</div>
+              <div class="product-total">Total ítem: {{this.subtotalFormatted}}</div>
+            </div>
+          </div>
+        </div>
+        {{/each}}
+      </div>
+
+      <div class="total-box">
+        <span>Total del pedido</span>
+        <strong>{{totalFormatted}}</strong>
+      </div>
+
+      <p style="margin-top: 24px; font-size: 14px; color: #666;">Te avisaremos por correo apenas el pedido sea validado o si necesitamos contactarte por disponibilidad de stock.</p>
+    </div>
+    <div class="footer">
+      <p>© 2025 Aromas de Armonía · Todos los derechos reservados</p>
+    </div>
+  </div>
+</body>
+</html>

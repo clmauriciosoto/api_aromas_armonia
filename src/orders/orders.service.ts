@@ -28,6 +28,7 @@ import { OrderItemStatus } from './entities/order-item-status.enum';
 import { OrderItemChangeHistoryEntry } from './entities/order-item-change-history-entry.type';
 import { ProductStatus } from '../products/entities/product-status.enum';
 import { ValidateOrderDecision, ValidateOrderDto } from './dto/validate-order.dto';
+import { MailService } from '../mail/mail.service';
 
 interface AuthenticatedUser {
   id?: string;
@@ -79,6 +80,7 @@ export class OrdersService {
     @InjectRepository(Inventory)
     private readonly inventoryRepository: Repository<Inventory>,
     private readonly dataSource: DataSource,
+    private readonly mailService: MailService,
   ) {}
 
   private async getOrCreateFeatureSettings(): Promise<OrderFeatureSettings> {
@@ -151,7 +153,7 @@ export class OrdersService {
       throw new BadRequestException('Order must include at least one item');
     }
 
-    return this.dataSource.transaction(async (manager) => {
+    const order = await this.dataSource.transaction(async (manager) => {
       let totalAmount = 0;
       const orderItems: OrderItem[] = [];
       const productCache = new Map<number, Product>();
@@ -161,6 +163,7 @@ export class OrdersService {
         if (!product) {
           product = await manager.getRepository(Product).findOne({
             where: { id: item.productId },
+            relations: ['images'],
           });
           if (!product) {
             throw new NotFoundException(
@@ -170,17 +173,7 @@ export class OrdersService {
           productCache.set(item.productId, product);
         }
 
-        const hasDiscount =
-          product.discountPrice !== null && product.discountPrice > 0;
-        const unitPrice = Number(
-          hasDiscount ? product.discountPrice : product.price,
-        );
-
-        if (!Number.isFinite(unitPrice) || unitPrice < 0) {
-          throw new BadRequestException(
-            `Product with id ${item.productId} has invalid pricing`,
-          );
-        }
+        const unitPrice = this.resolveEffectiveUnitPrice(product, item.productId);
 
         const subtotal = unitPrice * item.quantity;
         totalAmount += subtotal;
@@ -221,8 +214,15 @@ export class OrdersService {
         items: orderItems,
       });
 
-      return manager.getRepository(Order).save(order);
+      const savedOrder = await manager.getRepository(Order).save(order);
+      savedOrder.items = orderItems;
+
+      return savedOrder;
     });
+
+    void this.mailService.sendOrderCreatedEmail(order);
+
+    return order;
   }
 
   async validateOrderStock(orderId: number): Promise<Order> {
@@ -325,7 +325,15 @@ export class OrdersService {
       `Order ${parsedOrderId} validation decision ${dto.decision} applied. New status: ${nextStatus}`,
     );
 
-    return this.orderRepository.save(order);
+    const saved = await this.orderRepository.save(order);
+
+    void this.mailService.sendOrderValidationEmail({
+      order: saved,
+      nextStatus,
+      note: dto.note,
+    });
+
+    return saved;
   }
 
   async validateOrderWithStock(orderId: number): Promise<OrderValidationResponseDto> {
@@ -445,18 +453,10 @@ export class OrdersService {
             );
           }
 
-          const hasDiscount =
-            productToAdd.discountPrice !== null &&
-            productToAdd.discountPrice > 0;
-          const unitPrice = Number(
-            hasDiscount ? productToAdd.discountPrice : productToAdd.price,
+          const unitPrice = this.resolveEffectiveUnitPrice(
+            productToAdd,
+            adjustment.addProductId,
           );
-
-          if (!Number.isFinite(unitPrice) || unitPrice < 0) {
-            throw new BadRequestException(
-              `Product with id ${adjustment.addProductId} has invalid pricing`,
-            );
-          }
 
           const subtotal = unitPrice * adjustment.addQuantity;
           const newOrderItem = manager.getRepository(OrderItem).create({
@@ -555,19 +555,10 @@ export class OrdersService {
 
           const newQuantity =
             adjustment.replacementQuantity ?? itemToReplace.quantity;
-          const hasDiscount =
-            replacementProduct.discountPrice !== null &&
-            replacementProduct.discountPrice > 0;
-          const unitPrice = Number(
-            hasDiscount
-              ? replacementProduct.discountPrice
-              : replacementProduct.price,
+          const unitPrice = this.resolveEffectiveUnitPrice(
+            replacementProduct,
+            adjustment.replacementProductId,
           );
-          if (!Number.isFinite(unitPrice) || unitPrice < 0) {
-            throw new BadRequestException(
-              `Replacement product ${adjustment.replacementProductId} has invalid price`,
-            );
-          }
           const subtotal = unitPrice * newQuantity;
           const previousProductId = itemToReplace.productId;
           const previousQuantity = itemToReplace.quantity;
@@ -906,6 +897,34 @@ export class OrdersService {
   ): OrderItemChangeHistoryEntry[] {
     const currentHistory = Array.isArray(history) ? history : [];
     return [...currentHistory, change];
+  }
+
+  private resolveEffectiveUnitPrice(product: Product, productId: number): number {
+    const price = Number(product.price);
+    const discountAmount = Number(product.discountPrice ?? 0);
+
+    if (!Number.isFinite(price) || price < 0) {
+      throw new BadRequestException(
+        `Product with id ${productId} has invalid pricing`,
+      );
+    }
+
+    if (!Number.isFinite(discountAmount) || discountAmount < 0) {
+      throw new BadRequestException(
+        `Product with id ${productId} has invalid discount pricing`,
+      );
+    }
+
+    const hasDiscount = discountAmount > 0;
+    const unitPrice = hasDiscount ? price - discountAmount : price;
+
+    if (!Number.isFinite(unitPrice) || unitPrice < 0) {
+      throw new BadRequestException(
+        `Product with id ${productId} has invalid effective pricing`,
+      );
+    }
+
+    return unitPrice;
   }
 }
 

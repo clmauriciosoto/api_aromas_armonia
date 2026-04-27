@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pedido cancelado</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f4f4f4; margin: 0; padding: 0; }
+    .wrapper { max-width: 600px; margin: 32px auto; background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+    .header { background: #3d2b1f; padding: 32px 40px; text-align: center; }
+    .header h1 { color: #f5e6d3; margin: 0; font-size: 22px; letter-spacing: 1px; }
+    .body { padding: 32px 40px; color: #333; }
+    .body h2 { color: #c0392b; margin-top: 0; }
+    .highlight { background: #fdf2f2; border-left: 4px solid #e74c3c; padding: 12px 16px; border-radius: 4px; margin: 20px 0; }
+    .note { background: #fffae6; border: 1px solid #f0d060; border-radius: 4px; padding: 12px 16px; font-size: 13px; color: #7a6500; margin-top: 20px; }
+    .footer { background: #f9f3ee; padding: 20px 40px; text-align: center; font-size: 12px; color: #999; }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="header">
+      <h1>Aromas de Armonía</h1>
+    </div>
+    <div class="body">
+      <h2>Tu pedido fue cancelado</h2>
+      <p>Hola <strong>{{firstName}} {{lastName}}</strong>,</p>
+      <p>Lamentamos informarte que tu pedido <strong>#{{orderId}}</strong> ha sido <strong>cancelado</strong>.</p>
+
+      <div class="highlight">
+        Si realizaste algún pago asociado a este pedido, nuestro equipo se pondrá en contacto contigo para coordinar el reembolso correspondiente.
+      </div>
+
+      <table width="100%" cellpadding="0" cellspacing="0" style="margin: 20px 0;">
+        <tr>
+          <td style="padding: 8px 0; color: #888; font-size: 14px;">N° de pedido</td>
+          <td style="padding: 8px 0; font-weight: 600; text-align: right;">#{{orderId}}</td>
+        </tr>
+        <tr>
+          <td style="padding: 8px 0; color: #888; font-size: 14px; border-top: 1px solid #f0e8e0;">Total</td>
+          <td style="padding: 8px 0; font-weight: 600; text-align: right; border-top: 1px solid #f0e8e0;">{{totalFormatted}}</td>
+        </tr>
+      </table>
+
+      {{#if note}}
+      <div class="note">
+        <strong>Motivo:</strong> {{note}}
+      </div>
+      {{/if}}
+
+      <p style="margin-top: 24px; font-size: 14px; color: #666;">Si crees que esto es un error o tienes alguna consulta, responde este correo con gusto te ayudamos.</p>
+    </div>
+    <div class="footer">
+      <p>© 2025 Aromas de Armonía · Todos los derechos reservados</p>
+    </div>
+  </div>
+</body>
+</html>

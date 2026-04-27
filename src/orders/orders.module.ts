@@ -8,10 +8,12 @@ import { OrderItem } from './entities/order-item.entity';
 import { Product } from '../products/entities/product.entity';
 import { OrderFeatureSettings } from './entities/order-feature-settings.entity';
 import { Inventory } from '../inventory/entities/inventory.entity';
+import { MailModule } from '../mail/mail.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Order, OrderItem, Product, OrderFeatureSettings, Inventory]),
+    MailModule,
   ],
   controllers: [OrdersController, AdminOrdersController],
   providers: [OrdersService],
