@@ -1,3 +1,9 @@
+## [1.12.0](https://github.com/clmauriciosoto/api_aromas_armonia/compare/v1.11.0...v1.12.0) (2026-04-27)
+
+### Features
+
+* **mail:** integrate mail service for order notifications ([0451b40](https://github.com/clmauriciosoto/api_aromas_armonia/commit/0451b4057ed33d6b8adfa9db0a7805cd6a6277dd))
+
 ## [1.11.0](https://github.com/clmauriciosoto/api_aromas_armonia/compare/v1.10.0...v1.11.0) (2026-03-30)
 
 ### Features
