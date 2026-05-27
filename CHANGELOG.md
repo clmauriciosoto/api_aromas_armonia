@@ -1,3 +1,9 @@
+## [1.14.1](https://github.com/clmauriciosoto/api_aromas_armonia/compare/v1.14.0...v1.14.1) (2026-05-27)
+
+### Bug Fixes
+
+* regenerate package lock ([a47ec8e](https://github.com/clmauriciosoto/api_aromas_armonia/commit/a47ec8e046a49cb75593647607f2ab350eb5adf8))
+
 ## [1.14.0](https://github.com/clmauriciosoto/api_aromas_armonia/compare/v1.13.2...v1.14.0) (2026-05-27)
 
 ### Features
