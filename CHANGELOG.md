@@ -1,3 +1,9 @@
+## [1.13.0](https://github.com/clmauriciosoto/api_aromas_armonia/compare/v1.12.0...v1.13.0) (2026-05-27)
+
+### Features
+
+* implement order delivery notification email and related order status transitions ([6739c32](https://github.com/clmauriciosoto/api_aromas_armonia/commit/6739c320389013783d069614cafe299ecc883b4f))
+
 ## [1.12.0](https://github.com/clmauriciosoto/api_aromas_armonia/compare/v1.11.0...v1.12.0) (2026-04-27)
 
 ### Features
