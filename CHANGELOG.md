@@ -1,3 +1,9 @@
+## [1.13.1](https://github.com/clmauriciosoto/api_aromas_armonia/compare/v1.13.0...v1.13.1) (2026-05-27)
+
+### Bug Fixes
+
+* **Dockerfile:** add --ignore-scripts flag to npm ci for development dependencies ([28cb199](https://github.com/clmauriciosoto/api_aromas_armonia/commit/28cb1995bc1c07088052c1a1c9fb00672c27daf1))
+
 ## [1.13.0](https://github.com/clmauriciosoto/api_aromas_armonia/compare/v1.12.0...v1.13.0) (2026-05-27)
 
 ### Features
