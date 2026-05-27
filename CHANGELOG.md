@@ -1,3 +1,9 @@
+## [1.14.0](https://github.com/clmauriciosoto/api_aromas_armonia/compare/v1.13.2...v1.14.0) (2026-05-27)
+
+### Features
+
+* **package-lock:** update dependencies for chokidar and readdirp in schematics-cli ([6751739](https://github.com/clmauriciosoto/api_aromas_armonia/commit/67517399054f69ce366a051f8e2f9c5b12024376))
+
 ## [1.13.2](https://github.com/clmauriciosoto/api_aromas_armonia/compare/v1.13.1...v1.13.2) (2026-05-27)
 
 ### Bug Fixes
