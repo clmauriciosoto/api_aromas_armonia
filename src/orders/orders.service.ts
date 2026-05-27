@@ -863,7 +863,20 @@ export class OrdersService {
     order.status = nextStatus;
     order.statusHistory = history;
 
-    return this.orderRepository.save(order);
+    const savedOrder = await this.orderRepository.save(order);
+
+    if (nextStatus === OrderStatus.DELIVERED) {
+      const orderWithRelations = await this.orderRepository.findOne({
+        where: { id: savedOrder.id },
+        relations: ['items', 'items.product', 'items.product.images'],
+      });
+
+      void this.mailService.sendOrderDeliveredEmail(
+        orderWithRelations ?? savedOrder,
+      );
+    }
+
+    return savedOrder;
   }
 
   private assertTransitionAllowed(

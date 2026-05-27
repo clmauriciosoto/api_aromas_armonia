@@ -90,6 +90,39 @@ export class MailService {
     }
   }
 
+  async sendOrderDeliveredEmail(order: Order): Promise<void> {
+    const activeItems = (order.items ?? []).filter(
+      (item) => item.status !== OrderItemStatus.REMOVED,
+    );
+
+    const products = activeItems.map((item) => ({
+      name: item.product?.name ?? `Producto #${item.productId}`,
+      imageUrl: this.getProductImageUrl(item.product),
+      quantity: item.quantity,
+      unitPriceFormatted: this.formatCurrency(item.unitPrice),
+      subtotalFormatted: this.formatCurrency(item.subtotal),
+    }));
+
+    try {
+      await this.mailerService.sendMail({
+        to: order.email,
+        subject: `Tu pedido #${order.id} fue entregado 🎉`,
+        template: 'order-delivered',
+        context: {
+          ...this.buildBaseContext(order),
+          products,
+        },
+      });
+      this.logger.log(
+        `Order delivered email sent to ${order.email} for order #${order.id}`,
+      );
+    } catch (err) {
+      this.logger.error(
+        `Failed to send order delivered email for order #${order.id}: ${(err as Error).message}`,
+      );
+    }
+  }
+
   private buildBaseContext(order: Order) {
     const restockDateValue = order.estimatedRestockDate
       ? new Date(order.estimatedRestockDate as string | number | Date)

@@ -235,4 +235,64 @@ export class AdminOrdersController {
   ) {
     return this.ordersService.validateOrder(String(id), dto);
   }
+
+  @ApiOperation({
+    summary: 'Request payment for a validated order (admin)',
+    description: 'Transitions order from VALIDATED to AWAITING_PAYMENT. Use this once the payment link or transfer details have been sent to the customer.',
+  })
+  @ApiParam({ name: 'id', type: Number, description: 'Order ID (integer)', example: 1 })
+  @ApiResponse({ status: 200, description: 'Order status changed to AWAITING_PAYMENT' })
+  @ApiResponse({ status: 400, description: 'Invalid transition' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden' })
+  @ApiResponse({ status: 404, description: 'Order not found' })
+  @Post(':id/request-payment')
+  requestPayment(@Param('id', ParseIntPipe) id: number) {
+    return this.ordersService.requestPayment(id);
+  }
+
+  @ApiOperation({
+    summary: 'Confirm payment received for an order (admin)',
+    description: 'Transitions order from AWAITING_PAYMENT to PAID. Use this once the transfer or payment link is confirmed as received.',
+  })
+  @ApiParam({ name: 'id', type: Number, description: 'Order ID (integer)', example: 1 })
+  @ApiResponse({ status: 200, description: 'Order status changed to PAID' })
+  @ApiResponse({ status: 400, description: 'Invalid transition' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden' })
+  @ApiResponse({ status: 404, description: 'Order not found' })
+  @Post(':id/confirm-payment')
+  confirmPayment(@Param('id', ParseIntPipe) id: number) {
+    return this.ordersService.confirmPayment(id);
+  }
+
+  @ApiOperation({
+    summary: 'Mark order as shipped (admin)',
+    description: 'Transitions order from SALE_CREATED to SHIPPED once the package is dispatched to the carrier or customer.',
+  })
+  @ApiParam({ name: 'id', type: Number, description: 'Order ID (integer)', example: 1 })
+  @ApiResponse({ status: 200, description: 'Order status changed to SHIPPED' })
+  @ApiResponse({ status: 400, description: 'Invalid transition' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden' })
+  @ApiResponse({ status: 404, description: 'Order not found' })
+  @Post(':id/ship')
+  shipOrder(@Param('id', ParseIntPipe) id: number) {
+    return this.ordersService.shipOrder(id);
+  }
+
+  @ApiOperation({
+    summary: 'Mark order as delivered (admin)',
+    description: 'Transitions order from SHIPPED to DELIVERED once the package has been successfully delivered.',
+  })
+  @ApiParam({ name: 'id', type: Number, description: 'Order ID (integer)', example: 1 })
+  @ApiResponse({ status: 200, description: 'Order status changed to DELIVERED' })
+  @ApiResponse({ status: 400, description: 'Invalid transition' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden' })
+  @ApiResponse({ status: 404, description: 'Order not found' })
+  @Post(':id/deliver')
+  deliverOrder(@Param('id', ParseIntPipe) id: number) {
+    return this.ordersService.deliverOrder(id);
+  }
 }
