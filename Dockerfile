@@ -8,7 +8,7 @@ WORKDIR /usr/src/app
 COPY package*.json ./
 
 # Instalar dependencias de desarrollo
-RUN npm ci
+RUN npm ci --ignore-scripts
 
 # Copiar el resto del proyecto
 COPY . .
