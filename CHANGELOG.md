@@ -1,3 +1,9 @@
+## [1.13.2](https://github.com/clmauriciosoto/api_aromas_armonia/compare/v1.13.1...v1.13.2) (2026-05-27)
+
+### Bug Fixes
+
+* package-lock,json ([ccf3ce9](https://github.com/clmauriciosoto/api_aromas_armonia/commit/ccf3ce9f8cca28c1a4bd0b9c53360a00f1ff4f61))
+
 ## [1.13.1](https://github.com/clmauriciosoto/api_aromas_armonia/compare/v1.13.0...v1.13.1) (2026-05-27)
 
 ### Bug Fixes
