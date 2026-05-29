@@ -2,8 +2,10 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ProductsService } from './products.service';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Product } from './entities/product.entity';
+import { ProductRelation } from './entities/product-relation.entity';
 import { Attribute } from '../attributes/entities/attribute.entity';
 import { OrderItem } from '../orders/entities/order-item.entity';
+import { Inventory } from '../inventory/entities/inventory.entity';
 import { DataSource } from 'typeorm';
 
 describe('ProductsService', () => {
@@ -25,7 +27,15 @@ describe('ProductsService', () => {
           useValue: repositoryMock,
         },
         {
+          provide: getRepositoryToken(Inventory),
+          useValue: repositoryMock,
+        },
+        {
           provide: getRepositoryToken(OrderItem),
+          useValue: repositoryMock,
+        },
+        {
+          provide: getRepositoryToken(ProductRelation),
           useValue: repositoryMock,
         },
         {

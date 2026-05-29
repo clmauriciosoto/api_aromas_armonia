@@ -1,0 +1,6 @@
+export enum ProductRelationType {
+  ACCESSORY = 'ACCESSORY',
+  RECOMMENDED = 'RECOMMENDED',
+  ALSO_INTERESTING = 'ALSO_INTERESTING',
+  REFILL = 'REFILL',
+}

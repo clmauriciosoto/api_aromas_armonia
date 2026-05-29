@@ -10,6 +10,7 @@ import {
 import { Attribute } from '../../attributes/entities/attribute.entity';
 import { ProductImage } from './product-image.entity';
 import { ProductStatus } from './product-status.enum';
+import { ProductRelation } from './product-relation.entity';
 
 @Entity()
 export class Product {
@@ -78,6 +79,18 @@ export class Product {
 
   @OneToMany(() => ProductImage, (productImage) => productImage.product)
   images: ProductImage[];
+
+  @OneToMany(
+    () => ProductRelation,
+    (productRelation) => productRelation.sourceProduct,
+  )
+  outgoingRelations: ProductRelation[];
+
+  @OneToMany(
+    () => ProductRelation,
+    (productRelation) => productRelation.targetProduct,
+  )
+  incomingRelations: ProductRelation[];
 
   stock?: number;
 }

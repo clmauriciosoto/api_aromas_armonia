@@ -9,15 +9,18 @@ import { ProductImage } from './entities/product-image.entity';
 import { Attribute } from '../attributes/entities/attribute.entity';
 import { OrderItem } from '../orders/entities/order-item.entity';
 import { Inventory } from '../inventory/entities/inventory.entity';
+import { ProductRelation } from './entities/product-relation.entity';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([
       Product,
       ProductImage,
+      ProductRelation,
       Attribute,
       OrderItem,
       Inventory,
+      ProductRelation,
     ]),
   ],
   controllers: [

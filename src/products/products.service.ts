@@ -31,6 +31,12 @@ import { ProductStatus } from './entities/product-status.enum';
 import { GetPublicProductsQueryDto } from './dto/get-public-products-query.dto';
 import { ProductImage } from './entities/product-image.entity';
 import { UpdateProductImageDto } from './dto/update-product.dto';
+import {
+  ProductRelationAssignmentDto,
+  UpdateProductRelationsDto,
+} from './dto/update-product-relations.dto';
+import { ProductRelation } from './entities/product-relation.entity';
+import { ProductRelationType } from './entities/product-relation-type.enum';
 
 export type PaginatedProductsResponse = {
   data: Product[];
@@ -44,6 +50,25 @@ export type PaginatedProductsResponse = {
 
 export type ProductAdminResponse = Omit<Product, 'deletedAt'>;
 
+export type RelatedProductEntry = {
+  relationId: number;
+  relationType: ProductRelationType;
+  displayOrder: number;
+  isActive: boolean;
+  product: Product;
+};
+
+export type ProductRelationGroups = {
+  accessories: RelatedProductEntry[];
+  recommended: RelatedProductEntry[];
+  alsoInteresting: RelatedProductEntry[];
+  refills: RelatedProductEntry[];
+};
+
+export type ProductWithRelations = Product & {
+  relatedProducts: ProductRelationGroups;
+};
+
 @Injectable()
 export class ProductsService {
   constructor(
@@ -55,8 +80,178 @@ export class ProductsService {
     private readonly inventoryRepository: Repository<Inventory>,
     @InjectRepository(OrderItem)
     private readonly orderItemRepository: Repository<OrderItem>,
+    @InjectRepository(ProductRelation)
+    private readonly productRelationRepository: Repository<ProductRelation>,
     private readonly dataSource: DataSource,
   ) {}
+
+  private createEmptyRelationGroups(): ProductRelationGroups {
+    return {
+      accessories: [],
+      recommended: [],
+      alsoInteresting: [],
+      refills: [],
+    };
+  }
+
+  private relationTypeToGroupKey(
+    relationType: ProductRelationType,
+  ): keyof ProductRelationGroups {
+    switch (relationType) {
+      case ProductRelationType.ACCESSORY:
+        return 'accessories';
+      case ProductRelationType.RECOMMENDED:
+        return 'recommended';
+      case ProductRelationType.ALSO_INTERESTING:
+        return 'alsoInteresting';
+      case ProductRelationType.REFILL:
+        return 'refills';
+    }
+  }
+
+  private flattenRelationAssignments(
+    sourceProductId: number,
+    payload: UpdateProductRelationsDto,
+  ): Array<{
+    sourceProductId: number;
+    targetProductId: number;
+    relationType: ProductRelationType;
+    displayOrder: number;
+    isActive: boolean;
+  }> {
+    const groups: Array<[
+      ProductRelationType,
+      ProductRelationAssignmentDto[] | undefined,
+    ]> = [
+      [ProductRelationType.ACCESSORY, payload.accessories],
+      [ProductRelationType.RECOMMENDED, payload.recommended],
+      [ProductRelationType.ALSO_INTERESTING, payload.alsoInteresting],
+      [ProductRelationType.REFILL, payload.refills],
+    ];
+
+    return groups.flatMap(([relationType, items]) =>
+      (items ?? []).map((item, index) => ({
+        sourceProductId,
+        targetProductId: item.targetProductId,
+        relationType,
+        displayOrder: item.displayOrder ?? index,
+        isActive: item.isActive ?? true,
+      })),
+    );
+  }
+
+  private async buildRelationGroups(
+    sourceProductId: number,
+    visibility: 'admin' | 'public',
+  ): Promise<ProductRelationGroups> {
+    const relations = await this.productRelationRepository.find({
+      where: { sourceProductId },
+      relations: ['targetProduct', 'targetProduct.attributes', 'targetProduct.images'],
+      order: {
+        relationType: 'ASC',
+        displayOrder: 'ASC',
+        id: 'ASC',
+      },
+    });
+
+    const groups = this.createEmptyRelationGroups();
+
+    for (const relation of relations) {
+      if (!relation.targetProduct) {
+        continue;
+      }
+
+      if (
+        visibility === 'public' &&
+        (!relation.isActive ||
+          relation.targetProduct.status !== ProductStatus.ACTIVE ||
+          !relation.targetProduct.isPurchasable ||
+          relation.targetProduct.deletedAt !== null)
+      ) {
+        continue;
+      }
+
+      const groupKey = this.relationTypeToGroupKey(relation.relationType);
+
+      groups[groupKey].push({
+        relationId: relation.id,
+        relationType: relation.relationType,
+        displayOrder: relation.displayOrder,
+        isActive: relation.isActive,
+        product: relation.targetProduct,
+      });
+    }
+
+    return groups;
+  }
+
+  private async attachRelationGroups(
+    product: Product,
+    visibility: 'admin' | 'public',
+  ): Promise<ProductWithRelations> {
+    const relatedProducts = await this.buildRelationGroups(product.id, visibility);
+    return Object.assign(product, { relatedProducts });
+  }
+
+  private async assertProductExists(id: number): Promise<void> {
+    const existingProduct = await this.productRepository.findOne({
+      where: { id },
+      withDeleted: true,
+      select: ['id'],
+    });
+
+    if (!existingProduct) {
+      throw new NotFoundException('Product not found');
+    }
+  }
+
+  private async validateRelationTargets(
+    sourceProductId: number,
+    relations: Array<{
+      targetProductId: number;
+      relationType: ProductRelationType;
+    }>,
+  ): Promise<void> {
+    const seenKeys = new Set<string>();
+
+    for (const relation of relations) {
+      if (relation.targetProductId === sourceProductId) {
+        throw new BadRequestException(
+          'A product cannot be related to itself',
+        );
+      }
+
+      const key = `${relation.relationType}:${relation.targetProductId}`;
+      if (seenKeys.has(key)) {
+        throw new BadRequestException(
+          'Duplicate related product within the same relation type',
+        );
+      }
+      seenKeys.add(key);
+    }
+
+    const targetProductIds = Array.from(
+      new Set(relations.map((relation) => relation.targetProductId)),
+    );
+
+    if (targetProductIds.length === 0) {
+      return;
+    }
+
+    const availableTargets = await this.productRepository.find({
+      where: {
+        id: In(targetProductIds),
+        deletedAt: IsNull(),
+      },
+      select: ['id'],
+    });
+
+    if (availableTargets.length !== targetProductIds.length) {
+      throw new BadRequestException(
+        'One or more related products are invalid or archived',
+      );
+    }
+  }
 
   async create(createProductDto: CreateProductDto): Promise<Product> {
     const price = this.resolvePrice(createProductDto);
@@ -194,8 +389,12 @@ export class ProductsService {
 
     data.sort((a, b) => pageIds.indexOf(a.id) - pageIds.indexOf(b.id));
 
+    const enrichedData = await Promise.all(
+      data.map((product) => this.attachRelationGroups(product, 'public')),
+    );
+
     return {
-      data,
+      data: enrichedData,
       meta: {
         total,
         page,
@@ -205,7 +404,7 @@ export class ProductsService {
     };
   }
 
-  async findOne(id: number): Promise<Product> {
+  async findOne(id: number): Promise<ProductWithRelations> {
     const product = await this.productRepository.findOne({
       where: {
         id,
@@ -220,10 +419,10 @@ export class ProductsService {
       throw new NotFoundException('Product not found');
     }
 
-    return product;
+    return this.attachRelationGroups(product, 'public');
   }
 
-  async findOneBySlug(slug: string): Promise<Product> {
+  async findOneBySlug(slug: string): Promise<ProductWithRelations> {
     const product = await this.productRepository.findOne({
       where: {
         slug,
@@ -238,7 +437,7 @@ export class ProductsService {
       throw new NotFoundException('Product not found');
     }
 
-    return product;
+    return this.attachRelationGroups(product, 'public');
   }
 
   async findAdmin(
@@ -315,7 +514,7 @@ export class ProductsService {
     };
   }
 
-  async findOneAdmin(id: number): Promise<Product> {
+  async findOneAdmin(id: number): Promise<ProductWithRelations> {
     const product = await this.productRepository.findOne({
       where: { id },
       relations: ['attributes', 'images'],
@@ -326,7 +525,7 @@ export class ProductsService {
       throw new NotFoundException('Product not found');
     }
 
-    return product;
+    return this.attachRelationGroups(product, 'admin');
   }
 
   async findOneAdminByBarcode(barcode: string): Promise<Product> {
@@ -347,6 +546,48 @@ export class ProductsService {
     }
 
     return product;
+  }
+
+  async getAdminProductRelations(
+    productId: number,
+  ): Promise<ProductRelationGroups> {
+    await this.assertProductExists(productId);
+    return this.buildRelationGroups(productId, 'admin');
+  }
+
+  async replaceAdminProductRelations(
+    productId: number,
+    payload: UpdateProductRelationsDto,
+  ): Promise<ProductRelationGroups> {
+    await this.assertProductExists(productId);
+
+    const flattenedRelations = this.flattenRelationAssignments(productId, payload);
+    await this.validateRelationTargets(productId, flattenedRelations);
+
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      const relationRepository = queryRunner.manager.getRepository(ProductRelation);
+      await relationRepository.delete({ sourceProductId: productId });
+
+      if (flattenedRelations.length > 0) {
+        await relationRepository.save(
+          flattenedRelations.map((relation) => relationRepository.create(relation)),
+        );
+      }
+
+      await queryRunner.commitTransaction();
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      this.rethrowPersistenceError(error);
+      throw error;
+    } finally {
+      await queryRunner.release();
+    }
+
+    return this.getAdminProductRelations(productId);
   }
 
   async update(

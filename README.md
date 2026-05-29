@@ -112,6 +112,71 @@ Respuesta:
 }
 ```
 
+## Relaciones entre productos
+
+Ahora puedes configurar relaciones dirigidas entre productos para casos como accesorios, recomendados, tambien te puede interesar y repuestos/refill.
+
+Endpoints:
+
+- `GET /admin/products/:id/relations`
+- `PUT /admin/products/:id/relations`
+- `GET /public/products/:slug` incluye `relatedProducts` en el detalle
+
+Ejemplo admin payload:
+
+```json
+{
+  "accessories": [
+    { "targetProductId": 12, "displayOrder": 0, "isActive": true }
+  ],
+  "recommended": [
+    { "targetProductId": 18, "displayOrder": 0, "isActive": true }
+  ],
+  "alsoInteresting": [
+    { "targetProductId": 25, "displayOrder": 0, "isActive": true }
+  ],
+  "refills": [
+    { "targetProductId": 30, "displayOrder": 0, "isActive": true }
+  ]
+}
+```
+
+Ejemplo respuesta admin/frontend:
+
+```json
+{
+  "accessories": [
+    {
+      "relationId": 3,
+      "relationType": "ACCESSORY",
+      "displayOrder": 0,
+      "isActive": true,
+      "product": {
+        "id": 12,
+        "name": "Gatillo premium",
+        "slug": "gatillo-premium",
+        "shortDescription": "Accesorio para aromatizantes",
+        "price": 2990,
+        "discountPrice": null,
+        "isPurchasable": true,
+        "status": "ACTIVE",
+        "image": "https://cdn.aromasarmonia.cl/products/gatillo-premium.jpg"
+      }
+    }
+  ],
+  "recommended": [],
+  "alsoInteresting": [],
+  "refills": []
+}
+```
+
+Reglas:
+
+- Las relaciones son direccionales y siempre configurables desde admin.
+- No se permite relacionar un producto consigo mismo.
+- No se permiten duplicados del mismo producto dentro del mismo tipo.
+- En público se filtran relaciones inactivas, archivadas o no comprables.
+
 ## Documentación adicional
 
 ```bash
