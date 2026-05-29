@@ -1,3 +1,9 @@
+## [1.18.0](https://github.com/clmauriciosoto/api_aromas_armonia/compare/v1.17.0...v1.18.0) (2026-05-29)
+
+### Features
+
+* enhance order item management with parent-child relationships and update email templates ([bc5d0bb](https://github.com/clmauriciosoto/api_aromas_armonia/commit/bc5d0bb60b73a1ca20b70f9f99dc767c8be0056d))
+
 ## [1.17.0](https://github.com/clmauriciosoto/api_aromas_armonia/compare/v1.16.0...v1.17.0) (2026-05-29)
 
 ### Features
