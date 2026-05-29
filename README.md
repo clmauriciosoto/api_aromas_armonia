@@ -65,6 +65,25 @@ Endpoints para controlar disponibilidad desde frontend y administración:
 
 Si `checkoutEnabled=false`, `POST /orders` responde `403` y bloquea confirmar pedido.
 
+### Notificacion interna de nuevos pedidos
+
+Desde `PATCH /admin/orders/settings` ahora tambien puedes configurar a quienes notificar cuando entra un pedido:
+
+- `notifyNewOrderEnabled`: activa/desactiva notificacion interna
+- `notifyNewOrderRecipients`: arreglo de correos que recibiran alerta de revision
+
+Ejemplo payload:
+
+```json
+{
+  "notifyNewOrderEnabled": true,
+  "notifyNewOrderRecipients": [
+    "ops@aromasarmonia.cl",
+    "ventas@aromasarmonia.cl"
+  ]
+}
+```
+
 ## Cloudinary (uploads desde el backend)
 
 Variables requeridas:

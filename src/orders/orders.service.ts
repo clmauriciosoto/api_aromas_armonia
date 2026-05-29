@@ -83,6 +83,29 @@ export class OrdersService {
     private readonly mailService: MailService,
   ) {}
 
+  private normalizeNotificationEmailArray(emails?: string[]): string[] {
+    return (emails ?? [])
+      .map((item) => item.trim().toLowerCase())
+      .filter(Boolean);
+  }
+
+  private resolveOrderReviewRecipients(
+    order: Order,
+    settings: OrderFeatureSettings,
+  ): string[] {
+    const uniqueRecipients = new Set<string>(
+      this.normalizeNotificationEmailArray(settings.notifyNewOrderRecipients),
+    );
+
+    if (!settings.notifyNewOrderEnabled && uniqueRecipients.size === 0) {
+      return [];
+    }
+
+    uniqueRecipients.delete(order.email.trim().toLowerCase());
+
+    return Array.from(uniqueRecipients);
+  }
+
   private async getOrCreateFeatureSettings(): Promise<OrderFeatureSettings> {
     let settings = await this.orderFeatureSettingsRepository.findOne({
       where: { id: 1 },
@@ -93,6 +116,8 @@ export class OrdersService {
         id: 1,
         cartEnabled: true,
         checkoutEnabled: true,
+        notifyNewOrderEnabled: false,
+        notifyNewOrderRecipients: [],
       });
       settings = await this.orderFeatureSettingsRepository.save(settings);
     }
@@ -105,6 +130,8 @@ export class OrdersService {
     return {
       cartEnabled: settings.cartEnabled,
       checkoutEnabled: settings.checkoutEnabled,
+      notifyNewOrderEnabled: settings.notifyNewOrderEnabled,
+      notifyNewOrderRecipients: settings.notifyNewOrderRecipients,
     };
   }
 
@@ -113,10 +140,12 @@ export class OrdersService {
   ): Promise<OrderFeatureSettingsResponseDto> {
     if (
       typeof payload.cartEnabled === 'undefined' &&
-      typeof payload.checkoutEnabled === 'undefined'
+      typeof payload.checkoutEnabled === 'undefined' &&
+      typeof payload.notifyNewOrderEnabled === 'undefined' &&
+      typeof payload.notifyNewOrderRecipients === 'undefined'
     ) {
       throw new BadRequestException(
-        'At least one setting must be provided: cartEnabled or checkoutEnabled',
+        'At least one setting must be provided',
       );
     }
 
@@ -130,11 +159,25 @@ export class OrdersService {
       settings.checkoutEnabled = payload.checkoutEnabled;
     }
 
+    if (typeof payload.notifyNewOrderEnabled !== 'undefined') {
+      settings.notifyNewOrderEnabled = payload.notifyNewOrderEnabled;
+    }
+
+    if (typeof payload.notifyNewOrderRecipients !== 'undefined') {
+      settings.notifyNewOrderRecipients = Array.from(
+        new Set(
+          this.normalizeNotificationEmailArray(payload.notifyNewOrderRecipients),
+        ),
+      );
+    }
+
     const updated = await this.orderFeatureSettingsRepository.save(settings);
 
     return {
       cartEnabled: updated.cartEnabled,
       checkoutEnabled: updated.checkoutEnabled,
+      notifyNewOrderEnabled: updated.notifyNewOrderEnabled,
+      notifyNewOrderRecipients: updated.notifyNewOrderRecipients,
     };
   }
 
@@ -221,6 +264,27 @@ export class OrdersService {
     });
 
     void this.mailService.sendOrderCreatedEmail(order);
+    void this.getOrCreateFeatureSettings()
+      .then((notificationSettings) => {
+        const recipients = this.resolveOrderReviewRecipients(
+          order,
+          notificationSettings,
+        );
+
+        if (recipients.length > 0) {
+          return this.mailService.sendOrderReviewNotificationEmail({
+            order,
+            recipients,
+          });
+        }
+
+        return Promise.resolve();
+      })
+      .catch((error) => {
+        this.logger.error(
+          `Failed to prepare order review notification for order #${order.id}: ${(error as Error).message}`,
+        );
+      });
 
     return order;
   }

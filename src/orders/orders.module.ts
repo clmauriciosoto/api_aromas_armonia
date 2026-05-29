@@ -12,7 +12,13 @@ import { MailModule } from '../mail/mail.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Order, OrderItem, Product, OrderFeatureSettings, Inventory]),
+    TypeOrmModule.forFeature([
+      Order,
+      OrderItem,
+      Product,
+      OrderFeatureSettings,
+      Inventory,
+    ]),
     MailModule,
   ],
   controllers: [OrdersController, AdminOrdersController],

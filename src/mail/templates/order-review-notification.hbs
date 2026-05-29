@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Nuevo pedido pendiente de revision</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f6f4f2; margin: 0; padding: 0; }
+    .wrapper { max-width: 680px; margin: 24px auto; background: #fff; border-radius: 8px; overflow: hidden; border: 1px solid #ece8e4; }
+    .header { background: #3d2b1f; color: #f5e6d3; padding: 22px 28px; }
+    .header h1 { margin: 0; font-size: 20px; }
+    .content { padding: 28px; color: #2e2e2e; }
+    .badge { display: inline-block; margin: 8px 0 20px; padding: 6px 10px; border-radius: 14px; background: #f5e6d3; color: #5a3c2a; font-size: 12px; font-weight: 700; }
+    .summary { width: 100%; border-collapse: collapse; margin: 12px 0 20px; }
+    .summary td { padding: 8px 0; border-bottom: 1px solid #f0ece8; font-size: 14px; }
+    .summary .label { color: #6f6a65; width: 45%; }
+    .summary .value { font-weight: 700; }
+    .products { margin-top: 20px; }
+    .product { padding: 10px 0; border-bottom: 1px solid #f0ece8; }
+    .product-title { font-size: 14px; font-weight: 700; color: #3d2b1f; }
+    .product-meta { font-size: 12px; color: #6f6a65; margin-top: 4px; }
+    .footer { background: #faf8f6; padding: 14px 28px; color: #8d867f; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="header">
+      <h1>Nuevo pedido para revision</h1>
+    </div>
+    <div class="content">
+      <span class="badge">Pendiente de validacion</span>
+      <p>Se registro un nuevo pedido que requiere revision del equipo.</p>
+
+      <table class="summary">
+        <tr>
+          <td class="label">Pedido</td>
+          <td class="value">#{{orderId}}</td>
+        </tr>
+        <tr>
+          <td class="label">Cliente</td>
+          <td class="value">{{firstName}} {{lastName}}</td>
+        </tr>
+        <tr>
+          <td class="label">Email cliente</td>
+          <td class="value">{{customerEmail}}</td>
+        </tr>
+        <tr>
+          <td class="label">Metodo de pago</td>
+          <td class="value">{{paymentMethodLabel}}</td>
+        </tr>
+        <tr>
+          <td class="label">Monto total</td>
+          <td class="value">{{totalFormatted}}</td>
+        </tr>
+      </table>
+
+      <div class="products">
+        {{#each products}}
+        <div class="product">
+          <div class="product-title">{{this.name}}</div>
+          <div class="product-meta">Cant: {{this.quantity}} | Unit: {{this.unitPriceFormatted}} | Total: {{this.subtotalFormatted}}</div>
+        </div>
+        {{/each}}
+      </div>
+    </div>
+    <div class="footer">
+      Notificacion automatica de Aromas de Armonia
+    </div>
+  </div>
+</body>
+</html>

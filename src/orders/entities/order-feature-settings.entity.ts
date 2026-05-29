@@ -17,6 +17,16 @@ export class OrderFeatureSettings {
   @Column({ type: 'boolean', default: true })
   checkoutEnabled: boolean;
 
+  @Column({ type: 'boolean', default: false })
+  notifyNewOrderEnabled: boolean;
+
+  @Column({
+    type: 'text',
+    array: true,
+    default: () => "'{}'",
+  })
+  notifyNewOrderRecipients: string[];
+
   @CreateDateColumn()
   createdAt: Date;
 

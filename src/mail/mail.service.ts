@@ -11,6 +11,11 @@ export interface SendValidationEmailOptions {
   note?: string;
 }
 
+export interface SendOrderReviewNotificationOptions {
+  order: Order;
+  recipients: string[];
+}
+
 @Injectable()
 export class MailService {
   private readonly logger = new Logger(MailService.name);
@@ -119,6 +124,47 @@ export class MailService {
     } catch (err) {
       this.logger.error(
         `Failed to send order delivered email for order #${order.id}: ${(err as Error).message}`,
+      );
+    }
+  }
+
+  async sendOrderReviewNotificationEmail(
+    options: SendOrderReviewNotificationOptions,
+  ): Promise<void> {
+    const { order, recipients } = options;
+
+    if (!recipients.length) {
+      return;
+    }
+
+    const activeItems = (order.items ?? []).filter(
+      (item) => item.status !== OrderItemStatus.REMOVED,
+    );
+
+    const products = activeItems.map((item) => ({
+      name: item.product?.name ?? `Producto #${item.productId}`,
+      quantity: item.quantity,
+      unitPriceFormatted: this.formatCurrency(item.unitPrice),
+      subtotalFormatted: this.formatCurrency(item.subtotal),
+    }));
+
+    try {
+      await this.mailerService.sendMail({
+        to: recipients,
+        subject: `Nuevo pedido #${order.id} pendiente de revision`,
+        template: 'order-review-notification',
+        context: {
+          ...this.buildBaseContext(order),
+          customerEmail: order.email,
+          products,
+        },
+      });
+      this.logger.log(
+        `Order review notification sent for order #${order.id} to ${recipients.join(', ')}`,
+      );
+    } catch (err) {
+      this.logger.error(
+        `Failed to send order review notification for order #${order.id}: ${(err as Error).message}`,
       );
     }
   }
