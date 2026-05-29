@@ -1,3 +1,9 @@
+## [1.16.0](https://github.com/clmauriciosoto/api_aromas_armonia/compare/v1.15.0...v1.16.0) (2026-05-29)
+
+### Features
+
+* add order review notification settings and email functionality ([8aed7cf](https://github.com/clmauriciosoto/api_aromas_armonia/commit/8aed7cf48c030f792e825f896231d49c490f000b))
+
 ## [1.15.0](https://github.com/clmauriciosoto/api_aromas_armonia/compare/v1.14.1...v1.15.0) (2026-05-29)
 
 ### Features
