@@ -1,6 +1,7 @@
 import {
   Injectable,
   BadRequestException,
+  ConflictException,
   InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
@@ -69,6 +70,23 @@ export class UsersService {
   }
 
   /**
+   * List all admin users without sensitive fields
+   */
+  async findAllAdmins(): Promise<Admin[]> {
+    try {
+      const admins = await this.adminRepository.find({
+        order: {
+          createdAt: 'DESC',
+        },
+      });
+
+      return admins.map((admin) => this.sanitizeAdmin(admin));
+    } catch {
+      throw new InternalServerErrorException('Error listing admin users');
+    }
+  }
+
+  /**
    * Find admin by email
    * @param email - Email address to search for
    * @returns Admin entity or null if not found
@@ -106,6 +124,123 @@ export class UsersService {
         throw error;
       }
       throw new InternalServerErrorException('Error finding admin by ID');
+    }
+  }
+
+  /**
+   * Update admin data
+   */
+  async updateAdmin(
+    id: string,
+    payload: {
+      email?: string;
+    },
+  ): Promise<Admin> {
+    const admin = await this.adminRepository.findOne({
+      where: { id },
+    });
+
+    if (!admin) {
+      throw new NotFoundException(`Admin with ID ${id} not found`);
+    }
+
+    if (payload.email !== undefined) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(payload.email)) {
+        throw new BadRequestException('Invalid email format');
+      }
+
+      const existingAdmin = await this.adminRepository.findOne({
+        where: { email: payload.email },
+      });
+
+      if (existingAdmin && existingAdmin.id !== id) {
+        throw new ConflictException('Email already exists');
+      }
+
+      admin.email = payload.email;
+    }
+
+    try {
+      const savedAdmin = await this.adminRepository.save(admin);
+      return this.sanitizeAdmin(savedAdmin);
+    } catch {
+      throw new InternalServerErrorException('Error updating admin user');
+    }
+  }
+
+  /**
+   * Update active status for an admin user
+   */
+  async setAdminStatus(id: string, isActive: boolean): Promise<Admin> {
+    const admin = await this.adminRepository.findOne({
+      where: { id },
+    });
+
+    if (!admin) {
+      throw new NotFoundException(`Admin with ID ${id} not found`);
+    }
+
+    admin.isActive = isActive;
+
+    try {
+      const savedAdmin = await this.adminRepository.save(admin);
+      return this.sanitizeAdmin(savedAdmin);
+    } catch {
+      throw new InternalServerErrorException('Error updating admin status');
+    }
+  }
+
+  /**
+   * Change admin password by validating current password first
+   */
+  async changeAdminPassword(
+    id: string,
+    currentPassword: string,
+    newPassword: string,
+  ): Promise<void> {
+    if (newPassword.length < 8) {
+      throw new BadRequestException(
+        'Password must be at least 8 characters long',
+      );
+    }
+
+    const admin = await this.adminRepository.findOne({
+      where: { id },
+    });
+
+    if (!admin) {
+      throw new NotFoundException(`Admin with ID ${id} not found`);
+    }
+
+    const isCurrentPasswordValid = await this.validatePassword(
+      currentPassword,
+      admin.password,
+    );
+
+    if (!isCurrentPasswordValid) {
+      throw new BadRequestException('Current password is incorrect');
+    }
+
+    const isSamePassword = await this.validatePassword(
+      newPassword,
+      admin.password,
+    );
+
+    if (isSamePassword) {
+      throw new BadRequestException(
+        'New password must be different from current password',
+      );
+    }
+
+    try {
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+      admin.password = hashedPassword;
+      admin.refreshToken = null;
+      admin.refreshTokenVersion = admin.refreshTokenVersion + 1;
+      await this.adminRepository.save(admin);
+    } catch {
+      throw new InternalServerErrorException('Error changing admin password');
     }
   }
 
