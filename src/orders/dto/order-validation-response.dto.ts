@@ -33,6 +33,30 @@ export class OrderValidationItemDto {
 
   @ApiProperty({ example: 39975 })
   subtotal: number;
+
+  @ApiPropertyOptional({
+    required: false,
+    nullable: true,
+    example: 7,
+    description: 'Order item ID of the parent product when this item is an accessory',
+  })
+  parentOrderItemId?: number | null;
+
+  @ApiPropertyOptional({
+    required: false,
+    nullable: true,
+    example: 12,
+    description: 'Product ID of the parent line when this item is an accessory',
+  })
+  parentProductId?: number | null;
+
+  @ApiPropertyOptional({
+    required: false,
+    nullable: true,
+    example: 'Aromatizante Textil POMPAS DE JABON Repuesto 500ml',
+    description: 'Product name of the parent line when this item is an accessory',
+  })
+  parentProductName?: string | null;
 }
 
 export class OrderValidationResponseDto {

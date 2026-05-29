@@ -25,6 +25,13 @@
     .product-name { font-weight: 700; color: #3d2b1f; font-size: 19px; line-height: 1.2; }
     .product-meta { margin-top: 8px; color: #7e7167; font-size: 13px; line-height: 1.35; }
     .product-total { margin-top: 10px; color: #3d2b1f; font-weight: 700; font-size: 16px; line-height: 1.25; }
+    .accessories-title { margin-top: 12px; color: #a0522d; font-size: 13px; font-weight: 700; }
+    .accessories-wrap { margin-top: 8px; padding-left: 20px; border-left: 2px solid #f0e0d3; }
+    .accessory-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 10px 0; }
+    .accessory-copy { min-width: 0; }
+    .accessory-name { color: #3d2b1f; font-weight: 600; font-size: 15px; line-height: 1.25; }
+    .accessory-meta { margin-top: 4px; color: #7e7167; font-size: 12px; line-height: 1.35; }
+    .accessory-total { color: #d46a00; font-weight: 700; font-size: 14px; white-space: nowrap; }
     .total-box { margin-top: 24px; padding: 16px 20px; background: #f9f3ee; border-radius: 6px; text-align: right; }
     .total-box span { color: #6d4c41; font-size: 15px; }
     .total-box strong { display: block; font-size: 30px; color: #3d2b1f; margin-top: 6px; }
@@ -93,6 +100,20 @@
               <div class="product-total">Total ítem: {{this.subtotalFormatted}}</div>
             </div>
           </div>
+          {{#if this.accessories.length}}
+          <div class="accessories-title">Accesorios incluidos:</div>
+          <div class="accessories-wrap">
+            {{#each this.accessories}}
+            <div class="accessory-row">
+              <div class="accessory-copy">
+                <div class="accessory-name">{{this.name}}</div>
+                <div class="accessory-meta">Cant: {{this.quantity}} · Unit: {{this.unitPriceFormatted}}</div>
+              </div>
+              <div class="accessory-total">+{{this.subtotalFormatted}}</div>
+            </div>
+            {{/each}}
+          </div>
+          {{/if}}
         </div>
         {{/each}}
       </div>

@@ -24,6 +24,12 @@
     .product-copy { padding-top: 3px; }
     .product-name { font-weight: 700; color: #3d2b1f; font-size: 19px; line-height: 1.2; }
     .product-meta { margin-top: 8px; color: #7e7167; font-size: 13px; line-height: 1.35; }
+    .accessories-title { margin-top: 12px; color: #2e7d32; font-size: 13px; font-weight: 700; }
+    .accessories-wrap { margin-top: 8px; padding-left: 20px; border-left: 2px solid #dfeee2; }
+    .accessory-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 10px 0; }
+    .accessory-copy { min-width: 0; }
+    .accessory-name { color: #3d2b1f; font-weight: 600; font-size: 15px; line-height: 1.25; }
+    .accessory-meta { margin-top: 4px; color: #7e7167; font-size: 12px; line-height: 1.35; }
     .footer { background: #f9f3ee; padding: 20px 40px; text-align: center; font-size: 12px; color: #999; }
     .footer a { color: #a0522d; text-decoration: none; }
 
@@ -86,6 +92,19 @@
               <div class="product-meta">Cant: {{this.quantity}}</div>
             </div>
           </div>
+          {{#if this.accessories.length}}
+          <div class="accessories-title">Accesorios incluidos:</div>
+          <div class="accessories-wrap">
+            {{#each this.accessories}}
+            <div class="accessory-row">
+              <div class="accessory-copy">
+                <div class="accessory-name">{{this.name}}</div>
+                <div class="accessory-meta">Cant: {{this.quantity}}</div>
+              </div>
+            </div>
+            {{/each}}
+          </div>
+          {{/if}}
         </div>
         {{/each}}
       </div>

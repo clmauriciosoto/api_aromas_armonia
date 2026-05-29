@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { MailerService } from '@nestjs-modules/mailer';
 import { Order } from '../orders/entities/order.entity';
+import { OrderItem } from '../orders/entities/order-item.entity';
 import { OrderItemStatus } from '../orders/entities/order-item-status.enum';
 import { PaymentMethod } from '../orders/entities/payment-method.enum';
 import { OrderStatus } from '../orders/entities/order-status.enum';
@@ -16,6 +17,23 @@ export interface SendOrderReviewNotificationOptions {
   recipients: string[];
 }
 
+type EmailAccessoryItem = {
+  name: string;
+  imageUrl: string | null;
+  quantity: number;
+  unitPriceFormatted: string;
+  subtotalFormatted: string;
+};
+
+type EmailProductItem = {
+  name: string;
+  imageUrl: string | null;
+  quantity: number;
+  unitPriceFormatted: string;
+  subtotalFormatted: string;
+  accessories: EmailAccessoryItem[];
+};
+
 @Injectable()
 export class MailService {
   private readonly logger = new Logger(MailService.name);
@@ -23,17 +41,7 @@ export class MailService {
   constructor(private readonly mailerService: MailerService) {}
 
   async sendOrderCreatedEmail(order: Order): Promise<void> {
-    const activeItems = (order.items ?? []).filter(
-      (item) => item.status !== OrderItemStatus.REMOVED,
-    );
-
-    const products = activeItems.map((item) => ({
-      name: item.product?.name ?? `Producto #${item.productId}`,
-      imageUrl: this.getProductImageUrl(item.product),
-      quantity: item.quantity,
-      unitPriceFormatted: this.formatCurrency(item.unitPrice),
-      subtotalFormatted: this.formatCurrency(item.subtotal),
-    }));
+    const products = this.buildGroupedOrderItems(order.items);
 
     try {
       await this.mailerService.sendMail({
@@ -96,17 +104,7 @@ export class MailService {
   }
 
   async sendOrderDeliveredEmail(order: Order): Promise<void> {
-    const activeItems = (order.items ?? []).filter(
-      (item) => item.status !== OrderItemStatus.REMOVED,
-    );
-
-    const products = activeItems.map((item) => ({
-      name: item.product?.name ?? `Producto #${item.productId}`,
-      imageUrl: this.getProductImageUrl(item.product),
-      quantity: item.quantity,
-      unitPriceFormatted: this.formatCurrency(item.unitPrice),
-      subtotalFormatted: this.formatCurrency(item.subtotal),
-    }));
+    const products = this.buildGroupedOrderItems(order.items);
 
     try {
       await this.mailerService.sendMail({
@@ -217,5 +215,40 @@ export class MailService {
       .sort((left, right) => left.position - right.position)[0];
 
     return primaryImage?.url ?? firstImage?.url ?? orderProduct.image ?? null;
+  }
+
+  private buildGroupedOrderItems(items: OrderItem[] | undefined): EmailProductItem[] {
+    const activeItems = (items ?? []).filter(
+      (item) => item.status !== OrderItemStatus.REMOVED,
+    );
+
+    const childItemsByParentId = new Map<number, OrderItem[]>();
+
+    for (const item of activeItems) {
+      if (!item.parentOrderItemId) {
+        continue;
+      }
+
+      const siblings = childItemsByParentId.get(item.parentOrderItemId) ?? [];
+      siblings.push(item);
+      childItemsByParentId.set(item.parentOrderItemId, siblings);
+    }
+
+    return activeItems
+      .filter((item) => !item.parentOrderItemId)
+      .map((item) => ({
+        name: item.product?.name ?? `Producto #${item.productId}`,
+        imageUrl: this.getProductImageUrl(item.product),
+        quantity: item.quantity,
+        unitPriceFormatted: this.formatCurrency(item.unitPrice),
+        subtotalFormatted: this.formatCurrency(item.subtotal),
+        accessories: (childItemsByParentId.get(item.id) ?? []).map((childItem) => ({
+          name: childItem.product?.name ?? `Producto #${childItem.productId}`,
+          imageUrl: this.getProductImageUrl(childItem.product),
+          quantity: childItem.quantity,
+          unitPriceFormatted: this.formatCurrency(childItem.unitPrice),
+          subtotalFormatted: this.formatCurrency(childItem.subtotal),
+        })),
+      }));
   }
 }

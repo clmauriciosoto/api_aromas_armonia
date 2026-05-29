@@ -36,6 +36,15 @@ interface AuthenticatedUser {
   role?: string;
 }
 
+interface CreateOrderItemDraft {
+  product: Product;
+  quantity: number;
+  unitPrice: number;
+  subtotal: number;
+  lineKey?: string;
+  parentLineKey?: string;
+}
+
 @Injectable()
 export class OrdersService {
   private readonly logger = new Logger(OrdersService.name);
@@ -198,7 +207,7 @@ export class OrdersService {
 
     const order = await this.dataSource.transaction(async (manager) => {
       let totalAmount = 0;
-      const orderItems: OrderItem[] = [];
+      const orderItemDrafts: CreateOrderItemDraft[] = [];
       const productCache = new Map<number, Product>();
 
       for (const item of items) {
@@ -221,22 +230,14 @@ export class OrdersService {
         const subtotal = unitPrice * item.quantity;
         totalAmount += subtotal;
 
-        const orderItem = manager.getRepository(OrderItem).create({
+        orderItemDrafts.push({
           product,
           quantity: item.quantity,
           unitPrice,
           subtotal,
-          status: OrderItemStatus.ACTIVE,
-          changeHistory: [
-            {
-              action: 'CREATED',
-              changedAt: new Date(),
-              note: 'Order item created',
-              newQuantity: item.quantity,
-            },
-          ],
+          lineKey: item.lineKey?.trim(),
+          parentLineKey: item.parentLineKey?.trim(),
         });
-        orderItems.push(orderItem);
       }
 
       const { items: _ignoredItems, ...shippingData } = createOrderDto;
@@ -254,11 +255,75 @@ export class OrdersService {
         ],
         paymentMethodSelected: shippingData.paymentMethod,
         totalAmount,
-        items: orderItems,
       });
 
       const savedOrder = await manager.getRepository(Order).save(order);
-      savedOrder.items = orderItems;
+
+      const orderItemRepository = manager.getRepository(OrderItem);
+      const savedItems: OrderItem[] = [];
+      const itemsByLineKey = new Map<string, OrderItem>();
+
+      for (const draft of orderItemDrafts) {
+        if (draft.lineKey && itemsByLineKey.has(draft.lineKey)) {
+          throw new BadRequestException(
+            `Duplicate lineKey detected: ${draft.lineKey}`,
+          );
+        }
+
+        const orderItem = orderItemRepository.create({
+          order: savedOrder,
+          product: draft.product,
+          productId: draft.product.id,
+          quantity: draft.quantity,
+          unitPrice: draft.unitPrice,
+          subtotal: draft.subtotal,
+          status: OrderItemStatus.ACTIVE,
+          changeHistory: [
+            {
+              action: 'CREATED',
+              changedAt: new Date(),
+              note: 'Order item created',
+              newQuantity: draft.quantity,
+            },
+          ],
+        });
+
+        const savedItem = await orderItemRepository.save(orderItem);
+        savedItems.push(savedItem);
+
+        if (draft.lineKey) {
+          itemsByLineKey.set(draft.lineKey, savedItem);
+        }
+      }
+
+      for (let index = 0; index < orderItemDrafts.length; index += 1) {
+        const draft = orderItemDrafts[index];
+        if (!draft.parentLineKey) {
+          continue;
+        }
+
+        const parentItem = itemsByLineKey.get(draft.parentLineKey);
+        if (!parentItem) {
+          throw new BadRequestException(
+            `parentLineKey not found: ${draft.parentLineKey}`,
+          );
+        }
+
+        const childItem = savedItems[index];
+        childItem.parentOrderItemId = parentItem.id;
+
+        const updatedChildItem = await orderItemRepository.save({
+          id: childItem.id,
+          parentOrderItemId: parentItem.id,
+        });
+
+        savedItems[index] = Object.assign(childItem, updatedChildItem, {
+          parentOrderItemId: parentItem.id,
+          parentOrderItem: null,
+        });
+      }
+
+      savedOrder.items = savedItems;
 
       return savedOrder;
     });
@@ -488,7 +553,7 @@ export class OrdersService {
 
       order.items = await manager.getRepository(OrderItem).find({
         where: { order: { id: orderId } },
-        relations: ['product'],
+        relations: ['product', 'parentOrderItem', 'parentOrderItem.product'],
       });
 
       if (!Array.isArray(adjustmentDto.adjustments)) {
@@ -649,7 +714,7 @@ export class OrdersService {
 
       order.items = await manager.getRepository(OrderItem).find({
         where: { order: { id: orderId }, status: OrderItemStatus.ACTIVE },
-        relations: ['product'],
+        relations: ['product', 'parentOrderItem', 'parentOrderItem.product'],
       });
 
       const recalculatedTotal = (order.items ?? []).reduce(
@@ -670,7 +735,7 @@ export class OrdersService {
   async confirmOrderValidation(orderId: number): Promise<Order> {
     const order = await this.orderRepository.findOne({
       where: { id: orderId },
-      relations: ['items'],
+      relations: ['items', 'items.parentOrderItem', 'items.parentOrderItem.product'],
     });
 
     if (!order) {
@@ -735,6 +800,9 @@ export class OrdersService {
         warning,
         unitPrice: orderItem.unitPrice,
         subtotal,
+        parentOrderItemId: orderItem.parentOrderItemId,
+        parentProductId: orderItem.parentOrderItem?.productId ?? null,
+        parentProductName: orderItem.parentOrderItem?.product?.name ?? null,
       });
     }
 
@@ -840,6 +908,8 @@ export class OrdersService {
       .createQueryBuilder('order')
       .leftJoinAndSelect('order.items', 'items')
       .leftJoinAndSelect('items.product', 'product')
+      .leftJoinAndSelect('items.parentOrderItem', 'parentOrderItem')
+      .leftJoinAndSelect('parentOrderItem.product', 'parentProduct')
       .where('order.id = :id', { id })
       .getOne();
 
@@ -864,6 +934,9 @@ export class OrdersService {
           quantityAvailable,
           unitPrice: item.unitPrice,
           subtotal: item.subtotal,
+          parentOrderItemId: item.parentOrderItemId,
+          parentProductId: item.parentOrderItem?.productId ?? null,
+          parentProductName: item.parentOrderItem?.product?.name ?? null,
         };
         }),
     );
@@ -887,7 +960,12 @@ export class OrdersService {
   async findOne(id: number): Promise<Order> {
     const order = await this.orderRepository.findOne({
       where: { id },
-      relations: ['items', 'items.product'],
+      relations: [
+        'items',
+        'items.product',
+        'items.parentOrderItem',
+        'items.parentOrderItem.product',
+      ],
     });
     if (!order) {
       throw new NotFoundException('Order not found');
@@ -932,7 +1010,13 @@ export class OrdersService {
     if (nextStatus === OrderStatus.DELIVERED) {
       const orderWithRelations = await this.orderRepository.findOne({
         where: { id: savedOrder.id },
-        relations: ['items', 'items.product', 'items.product.images'],
+        relations: [
+          'items',
+          'items.product',
+          'items.product.images',
+          'items.parentOrderItem',
+          'items.parentOrderItem.product',
+        ],
       });
 
       void this.mailService.sendOrderDeliveredEmail(

@@ -3,6 +3,7 @@ import {
   Entity,
   JoinColumn,
   ManyToOne,
+  OneToMany,
   PrimaryGeneratedColumn,
 } from 'typeorm';
 import { Order } from './order.entity';
@@ -33,6 +34,19 @@ export class OrderItem {
 
   @Column('int')
   subtotal: number;
+
+  @Column('int', { nullable: true })
+  parentOrderItemId: number | null;
+
+  @ManyToOne(() => OrderItem, (item) => item.childOrderItems, {
+    onDelete: 'SET NULL',
+    nullable: true,
+  })
+  @JoinColumn({ name: 'parentOrderItemId' })
+  parentOrderItem: OrderItem | null;
+
+  @OneToMany(() => OrderItem, (item) => item.parentOrderItem)
+  childOrderItems: OrderItem[];
 
   @Column({
     type: 'enum',

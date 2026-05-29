@@ -23,6 +23,30 @@ class OrderDetailItemDto {
 
   @ApiProperty({ example: 15990 })
   subtotal: number;
+
+  @ApiProperty({
+    required: false,
+    nullable: true,
+    example: 7,
+    description: 'Order item ID of the parent product when this item is an accessory',
+  })
+  parentOrderItemId?: number | null;
+
+  @ApiProperty({
+    required: false,
+    nullable: true,
+    example: 12,
+    description: 'Product ID of the parent line when this item is an accessory',
+  })
+  parentProductId?: number | null;
+
+  @ApiProperty({
+    required: false,
+    nullable: true,
+    example: 'Aromatizante Textil POMPAS DE JABON Repuesto 500ml',
+    description: 'Product name of the parent line when this item is an accessory',
+  })
+  parentProductName?: string | null;
 }
 
 export class OrderDetailResponseDto {
