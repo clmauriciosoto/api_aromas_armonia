@@ -1,3 +1,9 @@
+## [1.15.0](https://github.com/clmauriciosoto/api_aromas_armonia/compare/v1.14.1...v1.15.0) (2026-05-29)
+
+### Features
+
+* add DTOs for user management and implement user controller methods ([acb4198](https://github.com/clmauriciosoto/api_aromas_armonia/commit/acb41980c71c05d554f7a2993f47d4a9a8884396))
+
 ## [1.14.1](https://github.com/clmauriciosoto/api_aromas_armonia/compare/v1.14.0...v1.14.1) (2026-05-27)
 
 ### Bug Fixes
