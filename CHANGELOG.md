@@ -1,3 +1,9 @@
+## [1.17.0](https://github.com/clmauriciosoto/api_aromas_armonia/compare/v1.16.0...v1.17.0) (2026-05-29)
+
+### Features
+
+* implement product relations management with CRUD endpoints and DTOs ([97474f4](https://github.com/clmauriciosoto/api_aromas_armonia/commit/97474f4dbd5535eb3dbacd28285c5421bb896993))
+
 ## [1.16.0](https://github.com/clmauriciosoto/api_aromas_armonia/compare/v1.15.0...v1.16.0) (2026-05-29)
 
 ### Features
