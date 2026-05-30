@@ -1,3 +1,9 @@
+## [1.19.0](https://github.com/clmauriciosoto/api_aromas_armonia/compare/v1.18.0...v1.19.0) (2026-05-30)
+
+### Features
+
+* **dashboard:** add DTOs for actionable orders, alerts, inventory, low stock, orders funnel, and sales overview ([b5db423](https://github.com/clmauriciosoto/api_aromas_armonia/commit/b5db423fe7687a32e881b51add8bbbbf6f92ac30))
+
 ## [1.18.0](https://github.com/clmauriciosoto/api_aromas_armonia/compare/v1.17.0...v1.18.0) (2026-05-29)
 
 ### Features
